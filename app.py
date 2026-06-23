@@ -511,6 +511,7 @@ _REQUIRED_METRIC_PARAMS = {
     "orbit_parallel_corridors":    [("polygon", "polygon")],
     "multi_lap":                   [("polygon", "polygon")],
     "waypoint_coverage":           [("waypoints", "waypoints")],
+    "min_waypoint_count":          [("waypoints", "waypoints")],
     "avoid_roads":                 [("road_names", "road_names")],
     "start_point":                 [("lat", "coord"), ("lon", "coord")],
     "end_point":                   [("lat", "coord"), ("lon", "coord")],
@@ -536,6 +537,19 @@ def _validate_metric_params(metric_type, params):
         elif kind == "coord":
             if v is None:
                 problems.append(f"缺少坐标「{key}」（请设置起点/终点位置）")
+    # min_waypoint_count: 校验 min_count 在 [1, 候选点数] 之间，否则永远满分或永远无法满足
+    if metric_type == "min_waypoint_count":
+        wps = params.get("waypoints")
+        n_wp = len(wps) if isinstance(wps, list) else 0
+        mc = params.get("min_count", 2)
+        try:
+            mc = int(mc)
+        except (TypeError, ValueError):
+            mc = None
+        if mc is None or mc < 1:
+            problems.append("「min_count」需为 ≥ 1 的整数")
+        elif n_wp and mc > n_wp:
+            problems.append(f"「min_count」({mc}) 超过候选点数量 ({n_wp})，无法满足")
     return problems
 
 

@@ -7,7 +7,6 @@ pip install flask
 python app.py
 # 浏览器打开 http://localhost:5000
 ```
-
 ## 使用流程
 
 1. **地图管理** → 上传 preprocess.py 生成的 `.db` 文件

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+.page-center{max-width:960px;margin:0 auto;padding:28px 24px}
+.page-center h1{font-size:24px;font-weight:900;color:#0b1220;margin-bottom:4px}
+.page-sub{font-size:13px;color:#94a3b8;margin-bottom:24px}
+.up-card{background:#fff;border:1px solid #e6ebf1;border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(13,25,45,.06);margin-bottom:24px}
+.up-card h2{font-size:14px;font-weight:700;color:#475569;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.up-grid{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}
+.fld-wrap{display:flex;flex-direction:column;gap:4px}
+.fld-wrap label{font-size:11px;color:#64748b;font-weight:600}
+.fld-wrap label .req{color:#e11d48}
+.inp{padding:9px 12px;border:1px solid #d8e0ea;border-radius:8px;font-size:13px;outline:none;font-family:inherit;transition:.15s;width:100%}
+.inp:focus{border-color:#0891b2;box-shadow:0 0 0 3px rgba(8,145,178,.12)}
+.inp.err{border-color:#e11d48;box-shadow:0 0 0 3px rgba(225,29,72,.1)}
+input[type=file].inp{padding:7px 10px;cursor:pointer}
+.btn{padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:.15s}
+.btn-primary{background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;box-shadow:0 2px 8px rgba(8,145,178,.3)}
+.btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;filter:none}
+.up-hint{font-size:11.5px;color:#94a3b8;margin-top:10px;line-height:1.6}
+.card-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.mapcard{background:#fff;border:1px solid #e6ebf1;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(13,25,45,.06);transition:.18s;display:flex;flex-direction:column;gap:12px}
+.mapcard:hover{border-color:#d8e0ea;box-shadow:0 4px 14px rgba(13,25,45,.08)}
+.mapcard-head{display:flex;align-items:flex-start;gap:10px}
+.mapcard-ico{width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,#e0f7fa,#f0fdfa);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.mapcard-info{flex:1;min-width:0}
+.mapcard-name{font-size:15px;font-weight:700;color:#0b1220;margin-bottom:2px;display:flex;align-items:center;gap:6px}
+.mapcard-name .edit-ico{font-size:12px;opacity:0;cursor:pointer;transition:.15s}
+.mapcard:hover .edit-ico{opacity:.5}
+.edit-ico:hover{opacity:1!important}
+.mapcard-file{font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mapcard-stat{font-size:11.5px;color:#64748b;font-family:'JetBrains Mono',monospace;padding:8px 10px;background:#f6f7f9;border-radius:7px}
+.mapcard-acts{display:flex;gap:7px}
+.btn-sm{padding:6px 12px;font-size:12px;font-weight:600;border-radius:7px;cursor:pointer;border:1px solid #d8e0ea;background:#fff;color:#475569;transition:.15s;font-family:inherit}
+.btn-sm:hover{background:#f1f4f8;border-color:#c2ccda}
+.btn-sm.danger{color:#e11d48;border-color:#fbb6c4}
+.btn-sm.danger:hover{background:#fff1f2}
+.empty{text-align:center;padding:48px;color:#94a3b8;font-size:13px}
+#preview-area{margin-top:24px}
+#preview-area h2{font-size:15px;font-weight:700;color:#475569;margin-bottom:10px}
+#preview-map{height:480px;border-radius:12px;border:1px solid #e6ebf1;box-shadow:0 1px 3px rgba(13,25,45,.06)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#0f1b2d;color:#fff;padding:11px 26px;border-radius:24px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:.3s;box-shadow:0 12px 40px rgba(13,25,45,.16)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-center">
+  <h1>地图管理</h1>
+  <div class="page-sub">上传 preprocess.py 生成的 .db 地图文件。地图名称建议填写区域名（如「海淀镇」「玉渊潭」），方便在工作台中识别。</div>
+
+  <div class="up-card">
+    <h2>📤 上传地图</h2>
+    <div class="up-grid">
+      <div class="fld-wrap">
+        <label>地图名称 <span class="req">*必填</span>（建议填区域名称）</label>
+        <input type="text" id="map-name" placeholder="例如：海淀镇、玉渊潭、石景山" class="inp" oninput="validate()">
+      </div>
+      <div class="fld-wrap">
+        <label>选择文件</label>
+        <input type="file" id="map-file" accept=".db" class="inp" onchange="validate()">
+      </div>
+      <div class="fld-wrap">
+        <label>&nbsp;</label>
+        <button id="up-btn" class="btn btn-primary" onclick="doUpload()" disabled>上传</button>
+      </div>
+    </div>
+    <div class="up-hint">💡 名称是工作台地图下拉框的显示文字，不填将无法正常识别。上传后仍可随时重命名。</div>
+  </div>
+
+  <div id="mlist" class="card-list"></div>
+
+  <div id="preview-area" style="display:none">
+    <h2 id="preview-title"></h2>
+    <div id="preview-map"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let previewMap;
+function $(id){return document.getElementById(id)}
+
+function validate(){
+  const name=($('map-name').value||'').trim();
+  const file=$('map-file').files[0];
+  const nameEl=$('map-name');
+  if(name)nameEl.classList.remove('err');
+  $('up-btn').disabled=!(name&&file);
+}
+
+async function load(){
+  const res=await fetch('/api/maps');const data=await res.json();
+  $('mlist').innerHTML=data.length?data.map(m=>`
+    <div class="mapcard">
+      <div class="mapcard-head">
+        <div class="mapcard-ico">🗺️</div>
+        <div class="mapcard-info">
+          <div class="mapcard-name">
+            <span id="name-${m.id}">${m.name}</span>
+            <span class="edit-ico" onclick="renameMap('${m.id}','${m.name.replace(/'/g,"\\'")}')" title="重命名">✏️</span>
+          </div>
+          <div class="mapcard-file" title="${m.filename}">${m.filename}</div>
+        </div>
+      </div>
+      <div class="mapcard-stat" id="stat-${m.id}">加载信息中…</div>
+      <div class="mapcard-acts">
+        <button class="btn-sm" onclick="preview('${m.id}','${m.name.replace(/'/g,"\\'")}')">🔍 预览地图</button>
+        <button class="btn-sm" onclick="renameMap('${m.id}','${m.name.replace(/'/g,"\\'")}')">✏️ 重命名</button>
+        <button class="btn-sm danger" onclick="delMap('${m.id}','${m.name.replace(/'/g,"\\'")}')">🗑 删除</button>
+      </div>
+    </div>`).join(''):'<div class="empty">暂无地图，请在上方上传 .db 文件</div>';
+  // 异步加载每张图的统计信息
+  data.forEach(async m=>{
+    try{
+      const s=await(await fetch(`/api/maps/${m.id}/summary`)).json();
+      const el=$('stat-'+m.id);
+      if(el&&!s.error)el.textContent=`节点 ${s.nodes} · 边 ${s.edges}${s.named_edges?' (命名 '+s.named_edges+')':''} · 实体 ${s.entities}`;
+      else if(el)el.textContent='⚠ 无法读取（文件可能损坏）';
+    }catch(e){const el=$('stat-'+m.id);if(el)el.textContent='⚠ 读取失败'}
+  });
+}
+
+async function doUpload(){
+  const name=($('map-name').value||'').trim();
+  const file=$('map-file').files[0];
+  if(!name){$('map-name').classList.add('err');toast('⚠ 请填写地图名称');return}
+  if(!file){toast('⚠ 请选择 .db 文件');return}
+  $('up-btn').disabled=true;$('up-btn').textContent='上传中…';
+  const fd=new FormData();fd.append('file',file);fd.append('name',name);
+  try{
+    const r=await(await fetch('/api/maps/upload',{method:'POST',body:fd})).json();
+    if(r.error){toast('⚠ '+r.error)}
+    else{toast('✓ 已上传：'+r.name);$('map-name').value='';$('map-file').value=''}
+  }catch(e){toast('⚠ 上传失败')}
+  $('up-btn').textContent='上传';validate();load();
+}
+
+async function renameMap(mid,cur){
+  const name=prompt('地图名称（建议填区域名称）:',cur);
+  if(name===null)return;
+  const t=name.trim();
+  if(!t){toast('⚠ 名称不能为空');return}
+  const r=await(await fetch(`/api/maps/${mid}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:t})})).json();
+  if(r.error){toast('⚠ '+r.error)}else{toast('✓ 已重命名');load()}
+}
+
+async function delMap(mid,name){
+  if(!confirm(`确定删除地图「${name}」？\n\n引用此地图的用例将失去地图关联。此操作不可撤销。`))return;
+  const r=await(await fetch(`/api/maps/${mid}`,{method:'DELETE'})).json();
+  if(r.error){toast('⚠ '+r.error)}
+  else{toast('✓ 已删除');if(previewMap){$('preview-area').style.display='none'}load()}
+}
+
+async function preview(mid,name){
+  $('preview-area').style.display='block';
+  $('preview-title').textContent='预览: '+name;
+  if(!previewMap){
+    previewMap=L.map('preview-map').setView([39.99,116.33],14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(previewMap);
+  }
+  previewMap.eachLayer(l=>{if(!(l instanceof L.TileLayer))previewMap.removeLayer(l)});
+  const net=await(await fetch('/api/maps/'+mid+'/network')).json();
+  const netLayer=L.geoJSON(net,{style:f=>({color:f.properties.name?'#0d9488':'#2dd4bf',weight:f.properties.name?3:2,opacity:f.properties.name?.9:.7}),
+    onEachFeature:(f,l)=>{if(f.properties.name)l.bindTooltip(f.properties.name,{sticky:true})}}).addTo(previewMap);
+  const ent=await(await fetch('/api/maps/'+mid+'/entities')).json();
+  L.geoJSON(ent,{
+    style:f=>({color:catColor(f.properties.category),weight:2,fillOpacity:0.12,dashArray:f.properties.geom_type==='polyline'?'6,4':null}),
+    pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,fillColor:catColor(f.properties.category),fillOpacity:0.75,stroke:false}),
+    onEachFeature:(f,l)=>{if(f.properties.name)l.bindTooltip(f.properties.name)}
+  }).addTo(previewMap);
+  if(netLayer.getBounds().isValid())previewMap.fitBounds(netLayer.getBounds(),{padding:[20,20]});
+  $('preview-area').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function catColor(c){
+  if(!c)return'#64748b';
+  const m={'green':'#16a34a','leisure':'#16a34a','education':'#ea580c','water':'#2563eb','nature/water':'#2563eb','sport':'#7c3aed','food':'#dc2626','waterway':'#2563eb','building':'#78716c','service':'#0891b2'};
+  for(const[k,v] of Object.entries(m))if(c.startsWith(k))return v;
+  return'#64748b';
+}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.classList.add('show'),10);setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300)},2400)}
+load();
+</script>
+{% endblock %}

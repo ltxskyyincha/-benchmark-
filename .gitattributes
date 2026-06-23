@@ -1,0 +1,15 @@
+# 默认：文本文件统一用 LF，由 Git 自动识别
+* text=auto eol=lf
+
+# Windows 专用脚本保持 CRLF（如果有的话）
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制文件不做任何转换
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.db binary

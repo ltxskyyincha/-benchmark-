@@ -1,0 +1,30 @@
+# ── 固定数据与用户数据（不纳入版本控制）──
+data/
+uploads/
+maps/
+routes/
+
+# ── 虚拟环境（平台相关、体积大，改用 requirements.txt 复现）──
+venv/
+.venv/
+env/
+ENV/
+
+# ── Flask 实例文件夹（常含本地配置和 SQLite 数据库）──
+instance/
+
+# ── 密钥与本地配置 ──
+.env
+
+# ── Python 缓存与编译产物 ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# ── 编辑器与系统文件 ──
+.vscode/
+.idea/
+.DS_Store
+*.log

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-center">
+  <h1>评测集管理</h1>
+  <div class="toolbar">
+    <button onclick="createBenchmark()" class="btn btn-primary">+ 新建评测集</button>
+  </div>
+  <div id="blist" class="card-list"></div>
+</div>
+<script>
+async function load(){
+  const res = await fetch('/api/benchmarks');
+  const data = await res.json();
+  document.getElementById('blist').innerHTML = data.length ? data.map(b=>`
+    <div class="card">
+      <div class="card-body">
+        <h3>${b.name}</h3>
+        <p class="muted">${b.description||'暂无描述'}</p>
+      </div>
+      <div class="card-actions">
+        <a href="/workbench/${b.id}" class="btn btn-sm">打开工作台</a>
+        <button onclick="delB('${b.id}')" class="btn btn-sm btn-danger">删除</button>
+      </div>
+    </div>`).join('') : '<p class="muted">暂无评测集，点击上方按钮创建</p>';
+}
+async function createBenchmark(){
+  const name=prompt('评测集名称：');
+  if(!name)return;
+  await fetch('/api/benchmarks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  load();
+}
+async function delB(id){
+  if(!confirm('确定删除？'))return;
+  await fetch('/api/benchmarks/'+id,{method:'DELETE'});
+  load();
+}
+load();
+</script>
+{% endblock %}

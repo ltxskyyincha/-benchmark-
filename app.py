@@ -99,10 +99,7 @@ def upload_map():
     if not f or not f.filename.endswith('.db'):
         return jsonify(error="请上传 .db 文件"), 400
     mid = uid()
-    # 名称为空（含纯空白）时回退到文件名，避免下拉框无文字
-    name = (request.form.get('name') or '').strip()
-    if not name:
-        name = f.filename.rsplit('.', 1)[0]
+    name = request.form.get('name') or f.filename.rsplit('.', 1)[0]
     dest = app.config['UPLOAD_FOLDER'] / f"{mid}.db"
     f.save(str(dest))
     get_db().execute(
@@ -110,41 +107,6 @@ def upload_map():
         (mid, name, f.filename, str(dest), now()))
     get_db().commit()
     return jsonify(id=mid, name=name)
-
-@app.route('/api/maps/<mid>', methods=['PATCH'])
-def rename_map(mid):
-    """重命名地图昵称。"""
-    d = request.json or {}
-    name = (d.get('name') or '').strip()
-    if not name:
-        return jsonify(error="名称不能为空"), 400
-    db = get_db()
-    row = db.execute("SELECT id FROM map_dbs WHERE id=?", (mid,)).fetchone()
-    if not row:
-        return jsonify(error="not found"), 404
-    db.execute("UPDATE map_dbs SET name=? WHERE id=?", (name, mid))
-    db.commit()
-    return jsonify(id=mid, name=name)
-
-@app.route('/api/maps/<mid>', methods=['DELETE'])
-def delete_map(mid):
-    """删除地图（同时删除磁盘文件）。引用该地图的用例 map_db_id 置空。"""
-    db = get_db()
-    row = db.execute("SELECT file_path FROM map_dbs WHERE id=?", (mid,)).fetchone()
-    if not row:
-        return jsonify(error="not found"), 404
-    # 解除用例引用
-    db.execute("UPDATE test_cases SET map_db_id=NULL WHERE map_db_id=?", (mid,))
-    db.execute("DELETE FROM map_dbs WHERE id=?", (mid,))
-    db.commit()
-    # 删除磁盘文件（容错）
-    try:
-        fp = row['file_path']
-        if fp and os.path.exists(fp):
-            os.remove(fp)
-    except Exception:
-        pass
-    return jsonify(ok=True)
 
 @app.route('/api/maps/<mid>/summary')
 def map_summary(mid):
@@ -155,68 +117,10 @@ def map_summary(mid):
         n_nodes = conn.execute("SELECT COUNT(*) FROM graph_nodes").fetchone()[0]
         n_edges = conn.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
         n_ents = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
-        # 兼容新旧 schema：尝试查询 name 列
-        n_named_edges = 0
-        try:
-            n_named_edges = conn.execute(
-                "SELECT COUNT(*) FROM graph_edges WHERE name IS NOT NULL"
-            ).fetchone()[0]
-        except Exception:
-            pass
         conn.close()
-        return jsonify(name=row['name'], nodes=n_nodes, edges=n_edges,
-                       entities=n_ents, named_edges=n_named_edges)
+        return jsonify(name=row['name'], nodes=n_nodes, edges=n_edges, entities=n_ents)
     except Exception as e:
         return jsonify(error=str(e)), 500
-
-@app.route('/api/maps/<mid>/road_names')
-def map_road_names(mid):
-    """搜索地图中的道路名称（用于 avoid_roads 指标的路名选择）"""
-    row = get_db().execute("SELECT file_path FROM map_dbs WHERE id=?", (mid,)).fetchone()
-    if not row: return jsonify(error="not found"), 404
-    q = request.args.get('q', '')
-    conn = sqlite3.connect(f"file:{row['file_path']}?mode=ro", uri=True)
-    try:
-        if q:
-            rows = conn.execute(
-                "SELECT DISTINCT name FROM graph_edges "
-                "WHERE name IS NOT NULL AND name LIKE ? ORDER BY name LIMIT 50",
-                (f"%{q}%",)
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT DISTINCT name FROM graph_edges "
-                "WHERE name IS NOT NULL ORDER BY name LIMIT 100"
-            ).fetchall()
-        names = [r[0] for r in rows]
-    except Exception:
-        names = []
-    conn.close()
-    return jsonify(names)
-
-@app.route('/api/maps/<mid>/graph')
-def map_graph(mid):
-    """
-    返回路网图结构，供前端做节点吸附与最短路径计算。
-
-    格式（紧凑，按索引对齐以减小体积）：
-      nodes: [[id, lat, lon], ...]
-      edges: [[a_id, b_id, length], ...]   无向边
-    前端据此构建邻接表跑 Dijkstra。
-    """
-    row = get_db().execute("SELECT file_path FROM map_dbs WHERE id=?", (mid,)).fetchone()
-    if not row:
-        return jsonify(error="not found"), 404
-    conn = sqlite3.connect(f"file:{row['file_path']}?mode=ro", uri=True)
-    nodes = [[r[0], r[1], r[2]]
-             for r in conn.execute("SELECT id, lat, lon FROM graph_nodes")]
-    node_ids = {n[0] for n in nodes}
-    edges = []
-    for r in conn.execute("SELECT node_a, node_b, length FROM graph_edges"):
-        if r[0] in node_ids and r[1] in node_ids:
-            edges.append([r[0], r[1], round(r[2], 2)])
-    conn.close()
-    return jsonify(nodes=nodes, edges=edges)
 
 @app.route('/api/maps/<mid>/network')
 def map_network(mid):
@@ -228,17 +132,14 @@ def map_network(mid):
     for r in conn.execute("SELECT id, lat, lon FROM graph_nodes"):
         nodes[r[0]] = (r[1], r[2])
     features = []
-    for r in conn.execute("SELECT node_a, node_b, length, highway, name, ref FROM graph_edges"):
+    for r in conn.execute("SELECT node_a, node_b, length, highway FROM graph_edges"):
         a, b = nodes.get(r[0]), nodes.get(r[1])
         if a and b:
-            props = {"highway": r[3], "length": round(r[2],1)}
-            if r[4]: props["name"] = r[4]
-            if r[5]: props["ref"] = r[5]
             features.append({
                 "type": "Feature",
                 "geometry": {"type": "LineString",
                              "coordinates": [[a[1],a[0]], [b[1],b[0]]]},
-                "properties": props
+                "properties": {"highway": r[3], "length": round(r[2],1)}
             })
     conn.close()
     return jsonify(type="FeatureCollection", features=features)
@@ -415,8 +316,6 @@ def export_benchmark(bid):
     cases = rows_to_list(db.execute(
         "SELECT * FROM test_cases WHERE benchmark_id=? ORDER BY sort_order", (bid,)).fetchall())
     output = []
-    map_manifest = {}   # db_path → 平台内原始文件名，便于用户准备评测环境
-    export_errors = []  # 收集必填几何/参数缺失，缺失则拒绝导出并指明位置
     for c in cases:
         geos = rows_to_list(db.execute(
             "SELECT * FROM geometries WHERE test_case_id=?", (c['id'],)).fetchall())
@@ -427,141 +326,63 @@ def export_benchmark(bid):
         # 获取 map_db 信息
         map_row = db.execute("SELECT * FROM map_dbs WHERE id=?",
                              (c['map_db_id'],)).fetchone() if c['map_db_id'] else None
-        # 规范化 db_path：maps/<安全地图名>.db（人类可读、可移植）
-        if map_row:
-            safe = _safe_slug(map_row['name'])
-            db_path = f"maps/{safe}.db"
-            map_manifest[db_path] = map_row['filename']
-        else:
-            db_path = ""
-        # 解析几何引用（兼容旧 @geo: 引用；新版坐标已内联）
+        # 解析几何引用（递归：groups 内嵌套的 "@geo:" 字符串也会被替换）
+        def resolve_geo(v):
+            if isinstance(v, str) and v.startswith('@geo:'):
+                return geo_bank.get(v[5:], [])
+            if isinstance(v, list):
+                return [resolve_geo(x) for x in v]
+            if isinstance(v, dict):
+                return {k: resolve_geo(x) for k, x in v.items()}
+            return v
+
+        def extract_coords(wp_list):
+            """从点列表（dict 或 [lat,lon]）提取 [[lat,lon],...]"""
+            out = []
+            for wp in wp_list or []:
+                if isinstance(wp, dict) and wp.get('lat') is not None:
+                    out.append([wp['lat'], wp.get('lon')])
+                elif isinstance(wp, (list, tuple)) and len(wp) >= 2:
+                    out.append([wp[0], wp[1]])
+            return out
+
         exported_metrics = []
         waypoint_coords_cache = None  # 用于自动继承到 backtrack 指标
         for m in metrics_rows:
             params = json.loads(m['params']) if m['params'] else {}
-            resolved = {}
-            for k, v in params.items():
-                if isinstance(v, str) and v.startswith('@geo:'):
-                    geo_name = v[5:]
-                    resolved[k] = geo_bank.get(geo_name, [])
-                else:
-                    resolved[k] = v
-            # 从 waypoint_coverage 的点组中提取 waypoint_coords 供 backtrack 指标使用
-            if m['metric_type'] == 'waypoint_coverage' and 'waypoints' in resolved:
-                wps = resolved['waypoints']
-                if isinstance(wps, list) and wps:
-                    waypoint_coords_cache = []
-                    for wp in wps:
-                        if isinstance(wp, dict):
-                            waypoint_coords_cache.append([wp.get('lat',0), wp.get('lon',0)])
-                        elif isinstance(wp, (list, tuple)) and len(wp)>=2:
-                            waypoint_coords_cache.append([wp[0], wp[1]])
+            resolved = {k: resolve_geo(v) for k, v in params.items()}
+            # 从 waypoint_coverage 中提取途经点坐标供 backtrack 指标使用
+            # 新格式: groups 的所有阶段点按序展平；旧格式: waypoints 列表
+            if m['metric_type'] == 'waypoint_coverage':
+                coords = []
+                if isinstance(resolved.get('groups'), list):
+                    for grp in resolved['groups']:
+                        if isinstance(grp, dict):
+                            coords.extend(extract_coords(grp.get('points')))
+                elif isinstance(resolved.get('waypoints'), list):
+                    coords = extract_coords(resolved['waypoints'])
+                if coords:
+                    waypoint_coords_cache = coords
             # backtrack 类指标自动填充 waypoint_coords
             if m['metric_type'] in ('no_backtrack_on_return','require_same_route_return'):
                 if 'waypoint_coords' not in resolved and waypoint_coords_cache:
                     resolved['waypoint_coords'] = waypoint_coords_cache
-            # 校验必填几何/参数是否齐全（缺失会导致评测时 factory 报错）
-            problems = _validate_metric_params(m['metric_type'], resolved)
-            for prob in problems:
-                export_errors.append({
-                    "case_id": c['id'],
-                    "instruction": (c['instruction'] or '')[:40],
-                    "metric": m['metric_type'],
-                    "problem": prob,
-                })
             exported_metrics.append({
                 "type": m['metric_type'], "params": resolved,
                 "weight": m['weight'], "hard": bool(m['is_hard'])
             })
         entry = {
             "id": c['id'],
-            "db_path": db_path,
+            "db_path": map_row['filename'] if map_row else "",
             "instruction": c['instruction'],
             "evaluator_config": {
-                "db_path": db_path,
                 "metrics": exported_metrics,
                 "hard_fail_cap": 0.5, "strict_hard": False
             },
             "notes": c['notes']
         }
         output.append(entry)
-    # 必填几何/参数缺失：拒绝导出，返回 422 + 明确的问题清单
-    if export_errors:
-        return jsonify({
-            "error": "导出失败：部分指标缺少必填的几何或参数",
-            "details": export_errors,
-        }), 422
-    # 若存在地图映射，附在响应头注释里（JSON 不支持注释，放一个特殊键）
-    # 用户可据此把平台上传的原始文件重命名为 maps/<safe>.db
-    if map_manifest:
-        return jsonify({"_map_files": map_manifest, "cases": output}) \
-            if request.args.get('with_manifest') else jsonify(output)
     return jsonify(output)
-
-
-# 各指标必填的几何/参数键（缺失或为空会导致评测时 factory 报错）
-_REQUIRED_METRIC_PARAMS = {
-    "must_pass_corridor":          [("corridor", "polyline")],
-    "corridor_follow_uniformity":  [("corridor", "polyline")],
-    "corridor_segment_min_length": [("corridor", "polyline")],
-    "prefer_corridor":             [("corridor", "polyline")],
-    "region_penetration":          [("polygon", "polygon")],
-    "region_orbit_uniformity":     [("polygon", "polygon")],
-    "orbit_boundary_proximity":    [("polygon", "polygon")],
-    "orbit_parallel_corridors":    [("polygon", "polygon")],
-    "multi_lap":                   [("polygon", "polygon")],
-    "waypoint_coverage":           [("waypoints", "waypoints")],
-    "min_waypoint_count":          [("waypoints", "waypoints")],
-    "avoid_roads":                 [("road_names", "road_names")],
-    "start_point":                 [("lat", "coord"), ("lon", "coord")],
-    "end_point":                   [("lat", "coord"), ("lon", "coord")],
-}
-
-def _validate_metric_params(metric_type, params):
-    """返回该指标缺失的必填项问题列表（空列表表示通过）。"""
-    problems = []
-    for key, kind in _REQUIRED_METRIC_PARAMS.get(metric_type, []):
-        v = params.get(key)
-        if kind == "polyline":
-            if not isinstance(v, list) or len(v) < 2:
-                problems.append(f"缺少走廊折线「{key}」（需至少 2 个点，请在地图上绘制或从实体选取）")
-        elif kind == "polygon":
-            if not isinstance(v, list) or len(v) < 3:
-                problems.append(f"缺少多边形「{key}」（需至少 3 个顶点，请在地图上绘制或从实体选取）")
-        elif kind == "waypoints":
-            if not isinstance(v, list) or len(v) < 1:
-                problems.append(f"缺少途经点「{key}」（请至少添加 1 个）")
-        elif kind == "road_names":
-            if not isinstance(v, list) or len(v) < 1:
-                problems.append(f"缺少要避开的道路「{key}」（请至少选择 1 条）")
-        elif kind == "coord":
-            if v is None:
-                problems.append(f"缺少坐标「{key}」（请设置起点/终点位置）")
-    # min_waypoint_count: 校验 min_count 在 [1, 候选点数] 之间，否则永远满分或永远无法满足
-    if metric_type == "min_waypoint_count":
-        wps = params.get("waypoints")
-        n_wp = len(wps) if isinstance(wps, list) else 0
-        mc = params.get("min_count", 2)
-        try:
-            mc = int(mc)
-        except (TypeError, ValueError):
-            mc = None
-        if mc is None or mc < 1:
-            problems.append("「min_count」需为 ≥ 1 的整数")
-        elif n_wp and mc > n_wp:
-            problems.append(f"「min_count」({mc}) 超过候选点数量 ({n_wp})，无法满足")
-    return problems
-
-
-def _safe_slug(name: str) -> str:
-    """把地图名转为文件名安全的 slug（保留中文，替换空白和危险字符）。"""
-    import re
-    s = (name or "map").strip()
-    # 替换路径分隔符和空白
-    s = re.sub(r'[\\/\s]+', '_', s)
-    # 去掉文件系统危险字符
-    s = re.sub(r'[<>:"|?*]', '', s)
-    return s or "map"
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

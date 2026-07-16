@@ -1,6 +1,6 @@
 # 路径评分指标汇总
 
-> 本文档汇总当前评价系统中全部 **22 个评分元函数**的评价理念、输入参数和计算方式。
+> 本文档汇总当前评价系统中全部 **19 个评分元函数**的评价理念、输入参数和计算方式。
 >
 > 每个元函数均为工厂函数：接收配置参数 → 返回闭包 `scorer(points) → (score, passed)`。
 > 最终评价函数的唯一输入为路径经纬度列表 `list[tuple[float, float]]`。
@@ -15,7 +15,7 @@ benchmark.json 配置
        ▼
   build_evaluator(config)        ← factory.py
        │
-       ├── 初等元函数 × 13       ← elementary_metrics.py
+       ├── 初等元函数 × 9        ← elementary_metrics.py
        ├── 中等元函数 × 9        ← intermediate_metrics.py
        │
        ▼
@@ -24,11 +24,11 @@ benchmark.json 配置
 
 **硬约束机制**：任一 `hard=True` 的指标 `passed=False` → 综合分封顶至 `hard_fail_cap`（默认 0.5）；严格模式下直接置零。
 
-**已移除的 2 个指标**（因 DB 信息损失）：`transport_mode`、`split_transport`。
+**已移除的 3 个指标**（因 DB 信息损失）：`transport_mode`、`avoid_roads`、`split_transport`。
 
 ---
 
-## 一、初等元函数（13 个）
+## 一、初等元函数（9 个）
 
 ### 1. `max_total_distance` — 路径总长上限
 
@@ -106,24 +106,40 @@ benchmark.json 配置
 
 ---
 
-### 5. `waypoint_coverage` — 必经点覆盖
+### 5. `waypoint_coverage` — 必经点覆盖（分组混合约束）
 
-**评价理念**：检查路径是否经过所有指定途经点（在各自半径内），以及是否按指定顺序依次经过。这是最常见的硬约束。
+**评价理念**：以「阶段化点组」形式检查路径的途经要求。每个阶段给出一组候选点和一个最少命中数，路径需在该组候选点中至少经过指定数量。阶段之间可要求有序（依次完成）或无序（各自满足即可）。
+
+传统单点序列是「每阶段 1 点、min_count=1」的特例。典型混合用法：「先去 a1/a2/a3 中至少 1 个，再去 b1/b2/b3 中至少 2 个」。
 
 **参数**：
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `waypoints` | list[dict] | — | 途经点列表，每个含 `lat`, `lon`, 可选 `radius_m`, `id`, `name` |
-| `ordered` | bool | True | 是否要求按列表顺序经过 |
+| `groups` | list[dict] | — | 阶段列表，每个元素含 `points`（候选点列表）和 `min_count`（至少经过数，默认 1） |
+| `waypoints` | list[dict]? | None | 旧格式兼容：单点序列，自动转换为每点一阶段 |
+| `ordered` | bool | True | 阶段之间是否要求依次完成 |
 | `default_radius_m` | float | 80.0 | 默认到达判定半径（米） |
 
 **计算逻辑**：
 
-1. 对每个途经点，找路径上距其最近的点，判断距离 ≤ radius_m → 命中
-2. 若 `ordered=True`，检查各命中点的弧长进度是否单调递增（最后一个途经点取最晚命中，其余取最早命中）
-3. 全部命中且顺序正确 → score = 1.0, passed = True
-4. 否则 → score = 命中率 × (顺序正确 ? 1.0 : 0.5), passed = False
+1. 对每个阶段的每个候选点，收集路径命中的弧长进度（有序模式下最后一个阶段取最晚命中，处理起终点相同的闭环；其余取最早命中）
+2. 阶段满足 = 命中候选点数 ≥ min_count；阶段完成进度 = 第 min_count 个命中的弧长
+3. ordered=True 时，各阶段完成进度必须严格递增（允许提前路过后续阶段的点，只要该阶段的"完成时刻"在前序阶段之后）
+4. 全部满足且顺序正确 → score = 1.0, passed = True
+5. 部分满足 → score = 各阶段 min(1, 命中数/min_count) 的平均值 × (顺序正确 ? 1.0 : 0.5)
+
+**配置示例**：
+
+```json
+{
+  "groups": [
+    {"points": [{"lat":39.99,"lon":116.31,"name":"a1","radius_m":100}, ...], "min_count": 1},
+    {"points": [{"lat":39.97,"lon":116.31,"name":"b1","radius_m":100}, ...], "min_count": 2}
+  ],
+  "ordered": true
+}
+```
 
 ---
 
@@ -211,128 +227,57 @@ benchmark.json 配置
 
 ---
 
-### 10. `avoid_roads` — 避开指定道路
+## 二、中等元函数（10 个）
 
-**评价理念**：检查路径是否途经了应避开的道路。适用于「避开中关村东路」「不要走成府路」类指令。通过 DB 路网边名称匹配实现。
+### 0. `region_enclosure` — 区域包围
+
+**评价理念**：检查路径是否围成一个封闭图形，将目标区域完全包围在内部，且路径本身完全位于目标区域的外部。与 `region_penetration`（只检查不穿入）的区别在于额外要求「封闭 + 包围住区域」。适用于「绕 X 走一圈把它围起来」类指令。
 
 **参数**：
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `road_names` | list[str] | — | 要避开的道路名称列表 |
-| `max_violation_ratio` | float | 0.0 | 允许的最大违规比率（0 = 完全不允许） |
-| `db` | MapDatabase? | None | 地图数据库（由 factory 自动注入） |
+| `polygon` | list | — | 目标区域多边形 `[[lat, lon], ...]` |
+| `closure_radius_m` | float | 150.0 | 首尾闭合判定半径（米） |
+| `min_containment_ratio` | float | 1.0 | 区域采样点被包围的最低比例（1.0 = 完全包围） |
+| `max_violation_ratio` | float | 0.0 | 允许路径穿入区域的点占比（0.0 = 严格外部） |
 
-**计算逻辑**：
+**计算逻辑（三个子维度加权）**：
 
-1. 通过 DB 将路径各段吸附到最近路网边，获取边的道路名
-2. 逐段检查名称是否匹配避开列表（双向子串包含，如「中关村东路」匹配「中关村东路北段」）
-3. violation_ratio = 匹配段总长 / 路径总长
-4. violation_ratio ≤ max_violation_ratio → score = 1.0, passed = True
-5. 否则 → score = max(0, 1 − violation_ratio / max_violation_ratio), passed = False
+| 子维度 | 权重 | 含义 |
+|--------|------|------|
+| 闭合性 | 0.30 | 路径首尾距离 ≤ closure_radius_m，超出线性衰减 |
+| 包围性 | 0.40 | 将路径视为隐式闭合多边形，对区域采样（顶点+边中点+质心），统计落在路径多边形内的比例 |
+| 外部性 | 0.30 | 路径点落入目标区域的比例须 ≤ max_violation_ratio |
 
-> **回退行为**：当 DB 不可用时，无法获取路名，返回 (0.5, False) 降级结果。
+passed = 闭合 且 包围比例达标 且 未违规穿入。
+
+> 注：包围性采用射线法（奇偶规则）判定，适用于单圈包围场景；多圈绕行请配合 `multi_lap` 使用。
 
 ---
 
-### 11. `start_point` — 起点约束
+### 1. `region_penetration` — 区域穿入禁止
 
-**评价理念**：检查路径的**第一个点**是否落在指定位置附近。适用于「从北大东门出发」「起点在地铁站」类指令。与 `waypoint_coverage` 的区别是：必经点覆盖检查路径**任意位置**是否路过某点，而起点约束严格检查路径首点。
-
-**参数**：
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `lat` | float | — | 起点纬度 |
-| `lon` | float | — | 起点经度 |
-| `name` | str? | None | 起点名称（仅文档用途） |
-| `radius_m` | float | 100.0 | 判定半径（米） |
-
-**计算逻辑**：
-
-1. d = haversine(points[0], (lat, lon))
-2. d ≤ radius_m → score = 1.0, passed = True
-3. 否则 → score = max(0, 1 − d / (2 × radius)), passed = False
-
----
-
-### 12. `end_point` — 终点约束
-
-**评价理念**：检查路径的**最后一个点**是否落在指定位置附近。适用于「最终到达军事博物馆」「终点是未名湖」类指令。结构与 `start_point` 完全对称，只是检查 points[-1]。
+**评价理念**：检查「绕行」路径是否违规穿入了目标区域内部。例如「绕清华跑一圈」时路径不应穿越校园。
 
 **参数**：
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `lat` | float | — | 终点纬度 |
-| `lon` | float | — | 终点经度 |
-| `name` | str? | None | 终点名称（仅文档用途） |
-| `radius_m` | float | 100.0 | 判定半径（米） |
+| `polygon` | list | — | 目标区域外围多边形 `[[lat, lon], ...]` |
+| `core_polygon` | list? | None | 核心区域多边形（可选，穿入检测用 core，距离计算用 polygon） |
+| `max_interior_ratio` | float | 0.02 | 允许的最大穿入点占比 |
+| `max_interior_run_m_val` | float | 100.0 | 允许的最长连续穿入段弧长（米） |
 
 **计算逻辑**：
 
-1. d = haversine(points[-1], (lat, lon))
-2. d ≤ radius_m → score = 1.0, passed = True
-3. 否则 → score = max(0, 1 − d / (2 × radius)), passed = False
+1. interior_ratio = 落在核心区域内部的路径点比例
+2. longest_run_m = 最长连续穿入段的弧长
+3. 两项都须 ≤ 阈值 → passed
+4. s_ratio = 1 − interior_ratio / max_interior_ratio
+5. s_run = 1 − run_m / max_interior_run_m
+6. score = min(s_ratio, s_run)
 
----
-
-### 13. `avoid_point` — 避开某点
-
-**评价理念**：路径需与指定地点保持距离，不得靠近。适用于「避开工地」「别经过垃圾站」「远离嘈杂市场」类指令。与 `avoid_roads` 互补——前者避开**线状道路**（按路网边名匹配），本指标避开**点状地点**（按坐标距离）。判定采用"路径最近距离"语义：路径任何一处都不能进入目标点的安全半径，最严格、最直观。
-
-**参数**：
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `lat` | float | — | 要避开的点纬度 |
-| `lon` | float | — | 要避开的点经度 |
-| `radius_m` | float | 150.0 | 安全半径（米），路径须保持在此距离之外 |
-| `name` | str? | None | 点名称（仅文档用途） |
-
-**计算逻辑**：
-
-1. min_dist = 路径上所有点到目标点的最近距离
-2. min_dist ≥ radius_m → 完全合格，score = 1.0, passed = True
-3. 侵入安全圈（min_dist < radius_m）→ score = min_dist / radius_m, passed = False
-   - 擦边时（min_dist 接近 radius）扣分少
-   - 正好经过目标点时（min_dist ≈ 0）score ≈ 0
-
-> 空路径视为未靠近，返回 (1.0, True)。
-
----
-
-## 二、中等元函数（9 个）
-
-### 1. `region_penetration` — 边界穿越禁止
-
-**评价理念**：给定一个封闭边界，检查路径是否违规穿越。支持**两种模式**：
-- **`no_enter`（默认）**：外部不得进入边界内部。适用于「绕清华跑一圈」不穿越校园。
-- **`no_exit`**：内部不得离开边界。适用于「在公园里跑步」不跑出园、「在校园内活动」不出校。
-
-**参数**：
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `polygon` | list | — | 边界多边形 `[[lat, lon], ...]` |
-| `mode` | str | "no_enter" | `no_enter`（外不入内）或 `no_exit`（内不出外） |
-| `core_polygon` | list? | None | 核心区域多边形（仅 no_enter 模式用于穿入检测） |
-| `max_violation_ratio` | float | 0.02 | 允许的最大违规点占比（兼容旧参数名 `max_interior_ratio`） |
-| `max_violation_run_m` | float | 100.0 | 允许的最长连续违规弧长，米（兼容旧参数名 `max_interior_run_m_val`） |
-
-**计算逻辑**：
-
-1. 根据 mode 确定违规侧：
-   - `no_enter` → 落在边界**内部**的点为违规
-   - `no_exit` → 落在边界**外部**的点为违规
-2. violation_ratio = 违规点数 / 总点数
-3. violation_run_m = 最长连续违规段弧长
-4. 两项都须 ≤ 阈值 → passed
-5. s_ratio = 1 − violation_ratio / max_violation_ratio
-6. s_run = 1 − run_m / max_violation_run_m
-7. score = min(s_ratio, s_run)
-
-> **向后兼容**：旧 benchmark 使用的 `max_interior_ratio` / `max_interior_run_m_val` 参数名仍然有效，会自动映射到新参数。不指定 mode 时默认 `no_enter`，行为与旧版完全一致。
 > **注意**：score < 1.0 时 passed 可能为 True（在阈值范围内但非完美），这是设计意图。
 
 ---
@@ -544,29 +489,3 @@ score = 各项加权和；passed = 各项宽松系数范围内全部满足。
 | 沿走廊 | "沿南长河走 500m" | must_pass_corridor(硬) + corridor_segment_min_length(硬) + corridor_follow_uniformity(软) |
 | 偏好走廊 | "沿河边跑" | prefer_corridor(软) |
 | 转向偏好 | "尽量少左转" | turn_preference(软) |
-| 避开道路 | "避开中关村东路" | avoid_roads(硬) + waypoint_coverage(硬) |
-| 避开地点 | "散步避开工地" | avoid_point(硬) |
-| 固定起点 | "从北大东门出发" | start_point(硬) |
-| 固定终点 | "最终到达军博" | end_point(硬) |
-| 园内活动 | "在公园里跑，别出园" | region_penetration(硬, mode=no_exit) |
-
----
-
-## 四、路径吸附与致密化
-
-部分指标（`avoid_roads` / `no_backtrack_on_return` / `require_same_route_return`）依赖将路径吸附到路网边来获取边属性（way_id、道路名）。被评测的路径点序列往往是稀疏的——相邻两点之间可能跨越很长一段实际道路。若直接取相邻点中点吸附，会丢失中间经过的所有边，导致违规漏检。
-
-为此，吸附前会对路径按固定间距（默认 **10 米**）做**重采样致密化**（`densify_path`）：在每对间隔超过阈值的相邻点之间线性插值补点，使吸附粒度足够细。致密化保留所有原始顶点，只在段内补点，对城市尺度的经纬度而言线性插值误差可忽略。
-
-需要"逐段累加段长"的指标（如 `avoid_roads` 计算违规里程占比）使用 `snap_densified_with_names`，它返回致密化后的点序列与逐段对齐的道路名，保证段名与段长索引一致。
-
----
-
-## 五、硬约束与软权重
-
-每个指标都有 `hard`（是否硬约束）和 `weight`（权重）两个属性，二者作用不同，容易混淆：
-
-- **`hard`（硬约束）**：决定 pass/fail 是否影响整体封顶。任一硬约束未通过时，综合分被封顶到 `hard_fail_cap`（默认 0.5），或在 `strict_hard=true` 时直接归零。
-- **`weight`（权重）**：决定该指标在**加权平均软分**中的占比。所有指标（无论硬软）的 score 按 weight 加权平均得到基础分。
-
-换言之：硬约束的 pass/fail 是"门槛"，weight 是"该项在连续得分里的话语权"。一个指标可以既是硬约束（必须满足，否则封顶）又有较小 weight（在软分里占比不高）。权重无需手动凑成 1，系统会自动归一化。

@@ -1,788 +1,653 @@
 {% extends "base.html" %}
 {% block title %}工作台{% endblock %}
-{% block head %}
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg-0:#f6f7f9;--bg-1:#fff;--bg-2:#f1f4f8;--bg-3:#e4e9f0;
-  --ink:#0b1220;--ink-2:#475569;--ink-3:#94a3b8;
-  --line:#e6ebf1;--line-2:#d8e0ea;
-  --brand:#0e7490;--brand-2:#0891b2;--brand-soft:#e0f7fa;--brand-ink:#155e75;
-  --side:#0f1b2d;--side-2:#1a2b44;--side-fg:#aebdd0;--side-hi:#22d3ee;
-  --red:#e11d48;--red-soft:#fff1f2;--green:#15803d;--green-soft:#f0fdf4;
-  --amber:#b45309;--amber-soft:#fffbeb;--amber-line:#fde68a;
-  --r:10px;--r-sm:7px;
-  --sh-sm:0 1px 2px rgba(13,25,45,.06);--sh:0 4px 14px rgba(13,25,45,.08);--sh-lg:0 12px 40px rgba(13,25,45,.16);
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans SC',system-ui,sans-serif;background:var(--bg-0);overflow:hidden;color:var(--ink);-webkit-font-smoothing:antialiased}
-.mono{font-family:'JetBrains Mono',monospace}
-.wb{display:flex;height:calc(100vh - 48px);overflow:hidden}
-
-/* ===== Left rail ===== */
-.rail{width:248px;background:linear-gradient(180deg,#0f1b2d,#0c1626);color:var(--side-fg);display:flex;flex-direction:column;flex-shrink:0}
-.rail-top{padding:16px 16px 12px;border-bottom:1px solid rgba(255,255,255,.07)}
-.rail-title{font-size:12px;font-weight:700;color:#eaf2fb;letter-spacing:.4px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.rail-title .ico{font-size:15px}
-.btn-export{background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.3);color:var(--side-hi);border-radius:var(--r-sm);padding:3px 10px;cursor:pointer;font-size:11.5px;font-weight:600;transition:.15s;font-family:inherit}
-.btn-export:hover{background:rgba(34,211,238,.22)}
-.map-pick{position:relative}
-.map-pick select{width:100%;background:var(--side-2);color:#eaf2fb;border:1px solid rgba(255,255,255,.12);border-radius:var(--r-sm);padding:8px 30px 8px 10px;font-size:12.5px;font-family:inherit;cursor:pointer;appearance:none;outline:none;transition:.15s}
-.map-pick select:hover{border-color:rgba(34,211,238,.4)}
-.map-pick select option{background:#10203a}
-.map-pick::after{content:'▾';position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--side-fg);pointer-events:none;font-size:11px}
-.map-stat{font-size:11px;color:var(--side-fg);opacity:.75;margin-top:8px;line-height:1.6;font-family:'JetBrains Mono',monospace;letter-spacing:-.2px}
-.rail-list{flex:1;overflow-y:auto;padding:8px}
-.rail-list::-webkit-scrollbar{width:6px}.rail-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
-.case{padding:10px 11px;border-radius:var(--r-sm);cursor:pointer;margin-bottom:3px;border:1px solid transparent;transition:.13s;position:relative}
-.case:hover{background:rgba(255,255,255,.05)}
-.case.on{background:rgba(34,211,238,.1);border-color:rgba(34,211,238,.28)}
-.case.on::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:3px;background:var(--side-hi);border-radius:2px}
-.case-txt{font-size:12px;color:#dbe6f2;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:5px}
-.case-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-.case-id{font-size:9.5px;color:var(--side-fg);opacity:.6;font-family:'JetBrains Mono',monospace}
-.chip{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;letter-spacing:.2px}
-.chip-h{background:rgba(225,29,72,.18);color:#fda4b4}
-.chip-n{background:rgba(21,128,61,.2);color:#86efac}
-.rail-empty{padding:28px 18px;text-align:center;color:var(--side-fg);opacity:.6;font-size:12px;line-height:1.8}
-.rail-foot{padding:11px 12px;border-top:1px solid rgba(255,255,255,.07)}
-.btn-new{width:100%;padding:9px;font-size:12.5px;font-weight:700;border-radius:var(--r-sm);border:none;background:linear-gradient(135deg,var(--brand-2),#0e7490);color:#fff;cursor:pointer;transition:.15s;font-family:inherit;box-shadow:0 2px 8px rgba(8,145,178,.3)}
-.btn-new:hover{filter:brightness(1.08);transform:translateY(-1px)}
-
-/* ===== Map ===== */
-.stage{flex:1;position:relative;min-width:0}
-.stage #map{width:100%;height:100%;background:#dde5ee}
-.search-pop{position:absolute;top:14px;right:14px;width:344px;background:var(--bg-1);border-radius:var(--r);box-shadow:var(--sh-lg);border:1px solid var(--line);z-index:1000;display:none;overflow:hidden}
-.search-pop.open{display:block;animation:pop .18s ease}
-@keyframes pop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
-.sp-head{padding:11px 13px;background:linear-gradient(135deg,var(--brand-soft),#f0fdfa);border-bottom:1px solid var(--line)}
-.sp-mode{font-size:11.5px;color:var(--brand-ink);font-weight:700;line-height:1.4}
-.sp-body{padding:11px 13px}
-.sp-row{display:flex;gap:7px;margin-bottom:9px}
-.sp-results{max-height:300px;overflow-y:auto;margin:0 -4px}
-.sp-results::-webkit-scrollbar{width:6px}.sp-results::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
-.sp-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;font-size:12.5px;transition:.1s}
-.sp-item:hover{background:var(--bg-2)}
-.sp-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 3px rgba(0,0,0,.04)}
-.sp-name{flex:1;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sp-cat{font-size:10px;color:var(--ink-3);font-family:'JetBrains Mono',monospace}
-.sp-foot{padding:9px 13px;border-top:1px solid var(--line);text-align:right;background:var(--bg-2)}
-.draw-hud{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:var(--side);color:#fff;padding:9px 8px 9px 18px;border-radius:24px;font-size:13px;z-index:900;display:none;align-items:center;gap:12px;box-shadow:var(--sh-lg)}
-.draw-hud.show{display:flex;animation:pop .2s ease}
-.draw-hud .dot{width:8px;height:8px;border-radius:50%;background:var(--side-hi);animation:blink 1.1s infinite}
-@keyframes blink{50%{opacity:.3}}
-.draw-hud button{background:rgba(255,255,255,.16);border:none;color:#fff;padding:5px 14px;border-radius:16px;cursor:pointer;font-size:12px;font-family:inherit;transition:.15s}
-.draw-hud button:hover{background:rgba(255,255,255,.28)}
-.net-toggle{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:22px;padding:6px 8px 6px 14px;z-index:700;display:flex;align-items:center;gap:10px;box-shadow:var(--sh-lg)}
-.net-label{font-size:12px;font-weight:600;color:var(--ink-2);display:flex;align-items:center;gap:6px;white-space:nowrap}
-.net-swatch{width:14px;height:4px;border-radius:2px;background:#0d9488;box-shadow:0 0 0 1px rgba(13,148,136,.3)}
-.net-btns{display:flex;gap:3px}
-.net-btns button{font-size:11.5px;font-weight:600;padding:4px 11px;border:1px solid var(--line-2);border-radius:14px;background:var(--bg-1);color:var(--ink-2);cursor:pointer;font-family:inherit;transition:.13s}
-.net-btns button:hover{border-color:#0d9488;color:#0d9488}
-.net-btns button.on{background:#0d9488;border-color:#0d9488;color:#fff;box-shadow:0 1px 4px rgba(13,148,136,.3)}
-.sim-enter{width:100%;padding:9px;font-size:12.5px;font-weight:600;border-radius:var(--r-sm);border:1px solid #a855f7;background:#faf5ff;color:#7e22ce;cursor:pointer;font-family:inherit;transition:.15s}
-.sim-enter:hover{background:#f3e8ff}
-.sim-enter.active{background:#7e22ce;border-color:#7e22ce;color:#fff}
-.sim-panel{position:absolute;top:14px;left:14px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;z-index:760;box-shadow:var(--sh-lg);min-width:160px}
-.sim-row{display:flex;align-items:center;gap:7px;margin-bottom:8px}
-.sim-dot{width:9px;height:9px;border-radius:50%;background:#a855f7;animation:blink 1.1s infinite}
-.sim-title{font-size:13px;font-weight:700;color:var(--ink)}
-.sim-status{font-size:11px;color:var(--ink-3);margin-left:auto}
-.sim-len{font-size:24px;font-weight:700;color:#7e22ce;font-family:'JetBrains Mono',monospace;margin-bottom:10px;line-height:1}
-.sim-btns{display:flex;gap:5px}
-.sim-btns button{flex:1;font-size:11px;font-weight:600;padding:6px 8px;border:1px solid var(--line-2);border-radius:6px;background:var(--bg-1);color:var(--ink-2);cursor:pointer;font-family:inherit;transition:.13s;white-space:nowrap}
-.sim-btns button:hover{border-color:#a855f7;color:#7e22ce;background:#faf5ff}
-.sim-btns .sim-exit{flex:0 0 auto;background:var(--bg-2)}
-
-/* ===== Editor ===== */
-.editor{width:410px;background:var(--bg-1);border-left:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
-.ed-blank{display:flex;align-items:center;justify-content:center;height:100%;padding:40px}
-.ed-blank-in{text-align:center;max-width:240px}
-.ed-blank-ico{font-size:42px;margin-bottom:16px;opacity:.5}
-.ed-blank h3{font-size:15px;color:var(--ink-2);margin-bottom:8px;font-weight:700}
-.ed-blank p{font-size:12.5px;color:var(--ink-3);line-height:1.7}
-.ed-flow{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.ed-scroll{flex:1;overflow-y:auto;padding:18px}
-.ed-scroll::-webkit-scrollbar{width:7px}.ed-scroll::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:4px}
-.sec{margin-bottom:22px}
-.sec-h{font-size:11px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:9px;display:flex;align-items:center;gap:7px}
-.sec-h .bar{width:3px;height:13px;background:var(--brand);border-radius:2px}
-.inp{width:100%;padding:9px 11px;border:1px solid var(--line-2);border-radius:var(--r-sm);font-size:13px;font-family:inherit;outline:none;transition:.15s;background:var(--bg-1);color:var(--ink)}
-.inp:focus{border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(8,145,178,.12)}
-.inp::placeholder{color:var(--ink-3)}
-.inp-sm{padding:6px 9px;font-size:12px;border-radius:6px}
-textarea.inp{resize:vertical;min-height:54px;line-height:1.6}
-
-/* lint banner */
-.lint{margin-bottom:16px;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--amber-line);background:var(--amber-soft);display:none}
-.lint.show{display:block;animation:pop .2s ease}
-.lint-h{padding:8px 12px;font-size:12px;font-weight:700;color:var(--amber);display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
-.lint-h .n{margin-left:auto;background:var(--amber);color:#fff;border-radius:10px;padding:0 7px;font-size:10.5px}
-.lint-body{padding:0 12px 10px;display:none}
-.lint.open .lint-body{display:block}
-.lint-item{font-size:11.5px;color:#92400e;line-height:1.6;padding:3px 0 3px 16px;position:relative}
-.lint-item::before{content:'•';position:absolute;left:4px;color:var(--amber)}
-
-/* metric card */
-.mc{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);margin-bottom:9px;box-shadow:var(--sh-sm);transition:.18s;overflow:hidden}
-.mc:hover{border-color:var(--line-2)}
-.mc.expanded{box-shadow:var(--sh);border-color:var(--brand-2)}
-.mc-h{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;user-select:none;transition:.12s}
-.mc-h:hover{background:var(--bg-2)}
-.mc-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;flex-shrink:0;letter-spacing:.3px}
-.mc-badge.hard{background:var(--red-soft);color:var(--red)}
-.mc-badge.soft{background:var(--green-soft);color:var(--green)}
-.mc-ico{font-size:15px;flex-shrink:0}
-.mc-name{font-size:13px;font-weight:600;flex:1;color:var(--ink)}
-.mc-w{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--ink-3);background:var(--bg-2);padding:1px 6px;border-radius:4px}
-.mc-x{background:none;border:none;cursor:pointer;color:var(--ink-3);font-size:17px;padding:0 3px;line-height:1;transition:.13s;border-radius:4px}
-.mc-x:hover{color:var(--red);background:var(--red-soft)}
-.mc-body{padding:12px;border-top:1px solid var(--bg-3);display:none;background:linear-gradient(180deg,var(--bg-2),var(--bg-1))}
-.mc.expanded .mc-body{display:block}
-.fld{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px}
-.fld:last-child{margin-bottom:0}
-.fld>label{color:var(--ink-2);min-width:116px;flex-shrink:0;font-weight:500}
-.fld input[type=number],.fld select{border:1px solid var(--line-2);border-radius:6px;padding:5px 8px;font-size:12px;outline:none;font-family:inherit;background:var(--bg-1);transition:.13s}
-.fld input[type=number]{width:88px}
-.fld input:focus,.fld select:focus{border-color:var(--brand-2);box-shadow:0 0 0 2px rgba(8,145,178,.1)}
-.fld input[type=checkbox]{width:15px;height:15px;accent-color:var(--brand-2);cursor:pointer}
-.mc-foot{display:flex;gap:14px;align-items:center;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line-2)}
-.mc-foot label{font-size:12px;display:flex;align-items:center;gap:6px;color:var(--ink-2)}
-.mc-foot .hint{font-size:10.5px;color:var(--ink-3);margin-left:auto;font-style:italic}
-
-.add-metric{position:relative}
-.add-metric select{border:1.5px dashed var(--line-2);border-radius:var(--r);padding:11px 12px;font-size:12.5px;font-family:inherit;color:var(--brand-ink);cursor:pointer;width:100%;outline:none;background:var(--bg-1);font-weight:600;transition:.15s;appearance:none;text-align:center}
-.add-metric select:hover{border-color:var(--brand-2);background:var(--brand-soft)}
-
-/* sub editors */
-.sub{margin:6px 0}
-.sub>label{font-size:12px;color:var(--ink-2);display:block;margin-bottom:6px;font-weight:500}
-.wp-list{margin:6px 0;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
-.wp-row{display:flex;align-items:center;gap:7px;padding:7px 10px;font-size:12px;background:var(--bg-1);transition:.1s}
-.wp-row:not(:last-child){border-bottom:1px solid var(--bg-3)}
-.wp-row:hover{background:var(--bg-2)}
-.wp-n{width:20px;height:20px;background:linear-gradient(135deg,var(--brand-2),var(--brand));color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;flex-shrink:0;box-shadow:0 1px 3px rgba(8,145,178,.3)}
-.wp-nm{flex:1;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wp-co{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
-.wp-b{background:none;border:none;cursor:pointer;font-size:12px;padding:2px 4px;color:var(--ink-3);border-radius:4px;transition:.1s}
-.wp-b:hover{background:var(--bg-3);color:var(--ink)}
-.add-row{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
-.add-row button{font-size:11px;padding:6px 10px;border:1px dashed var(--line-2);border-radius:6px;background:var(--bg-1);cursor:pointer;color:var(--ink-2);font-family:inherit;transition:.13s;font-weight:500}
-.add-row button:hover{border-color:var(--brand-2);color:var(--brand-ink);background:var(--brand-soft)}
-.geo-stat{font-size:11.5px;padding:6px 0;font-family:'JetBrains Mono',monospace}
-.geo-ok{color:var(--green)}.geo-no{color:var(--amber)}
-.rn-tags{display:flex;flex-wrap:wrap;gap:5px;min-height:26px;margin:6px 0}
-.rn-tag{display:inline-flex;align-items:center;gap:4px;background:var(--brand-soft);border:1px solid #a5e8ee;border-radius:5px;padding:3px 8px;font-size:11.5px;font-weight:600;color:var(--brand-ink)}
-.rn-tag button{background:none;border:none;cursor:pointer;font-size:14px;color:var(--brand);padding:0;line-height:1;opacity:.6}
-.rn-tag button:hover{opacity:1}
-.rn-empty{color:var(--ink-3);font-size:11.5px}
-.rn-sug{position:absolute;left:0;right:0;top:calc(100% + 3px);background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-sm);box-shadow:var(--sh);max-height:170px;overflow-y:auto;z-index:60}
-.rn-sug-i{padding:7px 11px;font-size:12px;cursor:pointer;transition:.1s}
-.rn-sug-i:hover{background:var(--brand-soft);color:var(--brand-ink)}
-
-/* footer actions */
-.ed-foot{padding:13px 18px;border-top:1px solid var(--line);display:flex;gap:9px;background:var(--bg-1)}
-.btn{padding:9px 18px;border-radius:var(--r-sm);font-size:12.5px;font-weight:700;cursor:pointer;border:1px solid var(--line-2);background:var(--bg-1);color:var(--ink-2);font-family:inherit;transition:.15s}
-.btn:hover{background:var(--bg-2)}
-.btn-primary{background:linear-gradient(135deg,var(--brand-2),var(--brand));border:none;color:#fff;flex:1;box-shadow:0 2px 8px rgba(8,145,178,.28)}
-.btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px)}
-.btn-danger{color:var(--red);border-color:#fbb6c4}
-.btn-danger:hover{background:var(--red-soft)}
-
-.road-tip{font-size:11.5px!important;font-weight:600!important;padding:3px 9px!important;border-radius:5px!important;background:rgba(15,27,45,.92)!important;color:#fff!important;border:none!important;box-shadow:var(--sh)!important}
-.road-tip::before{display:none!important}
-.leaflet-draw-toolbar{display:none!important}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--side);color:#fff;padding:11px 26px;border-radius:24px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:.3s;box-shadow:var(--sh-lg)}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-@media(max-width:1240px){.editor{width:368px}.rail{width:220px}}
-</style>
-{% endblock %}
 {% block content %}
 <div class="wb">
-  <aside class="rail">
-    <div class="rail-top">
-      <div class="rail-title"><span><span class="ico">📋</span> 用例集</span><button class="btn-export" onclick="exportBenchmark()">⬇ 导出</button></div>
-      <div class="map-pick">
-        <select id="sel-map" onchange="switchMap(this.value)"><option value="">选择地图…</option></select>
-        <div class="map-stat" id="map-info"></div>
+  <!-- ═══ 左栏 ═══ -->
+  <aside class="wb-left">
+    <div class="panel">
+      <div class="panel-hd">用例列表
+        <div class="actions">
+          <button class="btn-icon" onclick="addCase()" title="新建用例">＋</button>
+          <button class="btn-icon" onclick="exportBenchmark()" title="导出 JSON">⬇</button>
+        </div>
+      </div>
+      <div class="panel-body" id="case-list"></div>
+    </div>
+    <div class="panel" style="flex:1;display:flex;flex-direction:column">
+      <div class="panel-hd">几何对象库</div>
+      <div class="panel-body" id="geo-list" style="flex:1;overflow-y:auto"></div>
+      <div class="panel-ft">
+        <button class="btn btn-xs" onclick="startDraw('polygon')">⬡ 画多边形</button>
+        <button class="btn btn-xs" onclick="startDraw('polyline')">〰 画折线</button>
+        <button class="btn btn-xs" onclick="startPointGroup()">📍 创建点组</button>
+        <button class="btn btn-xs" onclick="toggleEntitySearch()">🎯 选实体</button>
       </div>
     </div>
-    <div class="rail-list" id="case-list"><div class="rail-empty">加载中…</div></div>
-    <div class="rail-foot"><button class="btn-new" onclick="addCase()">＋ 新建用例</button></div>
+    <div class="panel">
+      <div class="panel-hd">地图选择</div>
+      <div style="padding:8px 12px">
+        <select id="sel-map" class="input input-sm" onchange="switchMap(this.value)">
+          <option value="">选择地图...</option>
+        </select>
+      </div>
+    </div>
   </aside>
 
-  <div class="stage">
-    <div id="map"></div>
-    <div class="search-pop" id="search-pop">
-      <div class="sp-head"><div class="sp-mode" id="sp-mode">🔍 浏览地图实体</div></div>
-      <div class="sp-body">
-        <div class="sp-row">
-          <input class="inp inp-sm" id="sp-q" placeholder="搜索名称…" oninput="doSearch()" style="flex:1">
-          <select class="inp inp-sm" id="sp-cat" onchange="doSearch()" style="width:84px">
-            <option value="">全部</option><option value="education">教育</option><option value="food">餐饮</option>
-            <option value="green">绿地</option><option value="sport">运动</option><option value="nature">自然</option>
-            <option value="waterway">水系</option><option value="building">建筑</option>
-          </select>
-        </div>
-        <div class="sp-results" id="sp-results"></div>
-      </div>
-      <div class="sp-foot"><button class="btn" style="padding:5px 14px;font-size:12px" onclick="closeSearch()">关闭</button></div>
+  <!-- ═══ 地图区 ═══ -->
+  <section class="wb-center">
+    <div id="map" class="wb-map"></div>
+    <!-- 地图工具条 -->
+    <div class="map-toolbar" id="map-toolbar">
+      <button class="tool-btn active" onclick="setMapMode('browse')" id="tool-browse" title="浏览">✋</button>
+      <button class="tool-btn" onclick="startPointGroup()" id="tool-point" title="放置点">📍</button>
+      <button class="tool-btn" onclick="startDraw('polygon')" id="tool-polygon" title="画多边形">⬡</button>
+      <button class="tool-btn" onclick="startDraw('polyline')" id="tool-polyline" title="画折线">〰</button>
+      <button class="tool-btn" onclick="toggleEntitySearch()" id="tool-entity" title="搜索实体">🔍</button>
     </div>
-    <div class="draw-hud" id="draw-hud"><span class="dot"></span><span id="draw-msg"></span><button onclick="cancelDraw()">取消</button></div>
-    <div class="net-toggle" id="net-toggle" style="display:none">
-      <span class="net-label"><span class="net-swatch"></span>可通行路网</span>
-      <div class="net-btns">
-        <button id="netbtn-highlight" class="on" onclick="setNetMode('highlight')" title="醒目高亮">高亮</button>
-        <button id="netbtn-subtle" onclick="setNetMode('subtle')" title="淡显，便于看实体">淡显</button>
-        <button id="netbtn-hidden" onclick="setNetMode('hidden')" title="隐藏路网">隐藏</button>
-      </div>
+    <!-- 实体搜索浮窗 -->
+    <div id="entity-search" class="float-panel" style="display:none">
+      <input type="text" id="ent-q" class="input input-sm" placeholder="搜索实体名称..." oninput="searchEntities()">
+      <div id="ent-results" style="max-height:220px;overflow-y:auto"></div>
+      <div style="text-align:right;margin-top:6px"><button class="btn btn-xs" onclick="toggleEntitySearch()">关闭</button></div>
     </div>
-    <div class="sim-panel" id="sim-panel" style="display:none">
-      <div class="sim-row">
-        <span class="sim-dot"></span>
-        <span class="sim-title">模拟画路</span>
-        <span class="sim-status" id="sim-status">点击起点</span>
-      </div>
-      <div class="sim-len" id="sim-len">0 m</div>
-      <div class="sim-btns">
-        <button onclick="simUndo()" title="撤销上一节点"><i></i>↶ 撤销</button>
-        <button onclick="simClear()" title="清除全部">✕ 清除</button>
-        <button class="sim-exit" onclick="toggleSimMode()">退出</button>
+    <!-- 点组编辑浮窗 -->
+    <div id="pg-editor" class="float-panel" style="display:none;left:12px;right:auto;top:56px;width:320px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px">📍 编辑点组 — 点击地图添加点</div>
+      <div id="pg-point-list" style="max-height:180px;overflow-y:auto"></div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input type="text" id="pg-name" class="input input-sm" placeholder="点组名称" style="flex:1">
+        <button class="btn btn-xs btn-primary" onclick="savePointGroup()">保存</button>
+        <button class="btn btn-xs" onclick="cancelPointGroup()">取消</button>
       </div>
     </div>
-  </div>
+  </section>
 
-  <aside class="editor">
-    <div class="ed-blank" id="ed-blank">
-      <div class="ed-blank-in">
-        <div class="ed-blank-ico">🗺️</div>
-        <h3>开始构建评测用例</h3>
-        <p>先在左上角选择一张地图，然后点击「新建用例」。地图实体可直接搜索引用为评分参数。</p>
+  <!-- ═══ 编辑面板 ═══ -->
+  <section class="wb-bottom">
+    <div id="no-case-hint" class="no-case">← 选择一个用例或点击 ＋ 新建</div>
+    <div id="case-editor" style="display:none">
+      <div class="editor-row">
+        <label class="row-label">指令</label>
+        <input type="text" id="inp-instruction" class="input" placeholder="输入中文自然语言指令，如「从北大东门出发绕清华跑一圈」" style="flex:1">
       </div>
-    </div>
-    <div id="ed-flow" class="ed-flow" style="display:none">
-      <div class="ed-scroll" id="ed-scroll">
-        <div class="lint" id="lint"><div class="lint-h" onclick="$('lint').classList.toggle('open')"><span>⚠ 配置提示</span><span class="n" id="lint-n">0</span></div><div class="lint-body" id="lint-body"></div></div>
-        <div class="sec"><div class="sec-h"><span class="bar"></span>💬 自然语言指令</div><textarea class="inp" id="inp-instruction" rows="2" placeholder="例如：从北大东门出发，去芙蓉里买东西再回未名湖，回程不要原路返回"></textarea></div>
-        <div class="sec"><div class="sec-h"><span class="bar"></span>备注</div><input class="inp inp-sm" id="inp-notes" placeholder="可选注释，如难度/分类标记"></div>
-        <div class="sec">
-          <div class="sec-h"><span class="bar"></span>🧭 模拟画路 <span style="font-weight:400;color:var(--ink-3);font-size:11px;text-transform:none;letter-spacing:0">— 沿路网试走，确认路径存在（不保存）</span></div>
-          <button id="sim-toggle-btn" class="sim-enter" onclick="toggleSimMode()">▶ 开启模拟画路</button>
-          <div id="sim-hint" style="display:none;font-size:11.5px;color:var(--ink-3);line-height:1.6;margin-top:8px;padding:8px 10px;background:var(--bg-2);border-radius:6px">
-            移动鼠标 → 自动吸附最近路网节点；单击确认；确认后悬停可预览到下一节点的最短路径。
+      <div class="editor-row" style="align-items:flex-start">
+        <label class="row-label" style="padding-top:6px">指标</label>
+        <div style="flex:1">
+          <div id="metric-list"></div>
+          <div class="metric-add-row">
+            <select id="sel-add-metric" class="input input-sm" style="max-width:260px">
+              <option value="">+ 添加评分指标...</option>
+              <optgroup label="📏 距离">
+                <option value="max_total_distance">路径总长上限</option>
+                <option value="min_total_distance">路径总长下限</option>
+                <option value="target_distance">目标里程</option>
+                <option value="reference_distance">参考里程</option>
+              </optgroup>
+              <optgroup label="📍 途经与闭环">
+                <option value="waypoint_coverage">必经点覆盖</option>
+                <option value="loop_to_start">闭环返回</option>
+              </optgroup>
+              <optgroup label="🔄 去回程">
+                <option value="no_backtrack_on_return">回程不重走</option>
+                <option value="require_same_route_return">要求原路返回</option>
+              </optgroup>
+              <optgroup label="🔀 转向"><option value="turn_preference">转向偏好</option></optgroup>
+              <optgroup label="⭕ 区域绕行">
+                <option value="region_enclosure">区域包围</option>
+                <option value="region_penetration">区域穿入禁止</option>
+                <option value="region_orbit_uniformity">绕行均衡性</option>
+                <option value="orbit_boundary_proximity">贴边最近路线</option>
+                <option value="orbit_parallel_corridors">冗余平行走廊</option>
+              </optgroup>
+              <optgroup label="〰 走廊">
+                <option value="corridor_follow_uniformity">走廊跟随均衡</option>
+                <option value="must_pass_corridor">必经走廊</option>
+                <option value="corridor_segment_min_length">走廊段落长度</option>
+                <option value="prefer_corridor">偏好走廊</option>
+              </optgroup>
+              <optgroup label="🔁 多圈"><option value="multi_lap">多圈检测</option></optgroup>
+            </select>
           </div>
         </div>
-        <div class="sec">
-          <div class="sec-h"><span class="bar"></span>📊 评分指标</div>
-          <div id="metric-list"></div>
-          <div class="add-metric"><select id="sel-add" onchange="addMetric(this.value);this.value=''">
-            <option value="">＋ 添加评分指标…</option>
-            <optgroup label="📏 距离约束"><option value="max_total_distance">路径总长上限</option><option value="min_total_distance">路径总长下限</option><option value="target_distance">目标里程</option><option value="reference_distance">参考里程</option></optgroup>
-            <optgroup label="📍 起终点与途经"><option value="waypoint_coverage">必经点覆盖</option><option value="min_waypoint_count">至少经过N个</option><option value="start_point">起点约束</option><option value="end_point">终点约束</option><option value="loop_to_start">闭环返回</option></optgroup>
-            <optgroup label="🔄 去回程"><option value="no_backtrack_on_return">回程不重走</option><option value="require_same_route_return">要求原路返回</option></optgroup>
-            <optgroup label="🔀 转向"><option value="turn_preference">转向偏好</option></optgroup>
-            <optgroup label="⭕ 绕行"><option value="region_penetration">边界穿越禁止</option><option value="region_orbit_uniformity">绕行均衡性</option><option value="orbit_boundary_proximity">贴边最近路线</option><option value="orbit_parallel_corridors">冗余平行走廊</option></optgroup>
-            <optgroup label="〰 走廊"><option value="must_pass_corridor">必经走廊</option><option value="corridor_follow_uniformity">走廊跟随均衡</option><option value="corridor_segment_min_length">走廊段落长度</option><option value="prefer_corridor">偏好走廊</option></optgroup>
-            <optgroup label="🔁 多圈"><option value="multi_lap">多圈检测</option></optgroup>
-            <optgroup label="🚫 避开"><option value="avoid_roads">避开指定道路</option><option value="avoid_point">避开某点</option></optgroup>
-          </select></div>
-        </div>
       </div>
-      <div class="ed-foot"><button class="btn btn-danger" onclick="deleteCase()">删除</button><button class="btn btn-primary" onclick="saveCase()">💾 保存用例</button></div>
+      <div class="editor-row" style="justify-content:flex-end;gap:8px;border-top:1px solid var(--border-light);padding-top:10px;margin-top:4px">
+        <button class="btn btn-sm btn-danger" onclick="deleteCurrentCase()">删除用例</button>
+        <button class="btn btn-sm btn-primary" onclick="saveCase()">💾 保存用例</button>
+      </div>
     </div>
-  </aside>
+  </section>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
-const MD={
-  max_total_distance:{label:'路径总长上限',icon:'📏',fields:[{key:'max_km',label:'最大路程(km)',type:'number',step:0.1,def:5}]},
-  min_total_distance:{label:'路径总长下限',icon:'📏',fields:[{key:'min_km',label:'最小路程(km)',type:'number',step:0.1,def:5}]},
-  target_distance:{label:'目标里程',icon:'📏',fields:[{key:'target_km',label:'目标(km)',type:'number',step:0.1,def:5},{key:'tolerance_km',label:'容差(km)',type:'number',step:0.1,def:0.5}]},
-  reference_distance:{label:'参考里程',icon:'📏',fields:[{key:'target_km',label:'参考(km)',type:'number',step:0.1,def:8},{key:'tolerance_km',label:'容差(km)',type:'number',step:0.1,def:1},{key:'min_km',label:'下界(km)',type:'number',step:0.1},{key:'max_km',label:'上界(km)',type:'number',step:0.1}]},
-  waypoint_coverage:{label:'必经点覆盖',icon:'📍',fields:[{key:'waypoints',label:'途经点',type:'waypoints'},{key:'ordered',label:'要求顺序',type:'check',def:true},{key:'default_radius_m',label:'默认半径(m)',type:'number',step:10,def:80}]},
-  min_waypoint_count:{label:'至少经过N个',icon:'📍',fields:[{key:'waypoints',label:'候选点',type:'waypoints'},{key:'min_count',label:'最少命中数',type:'number',step:1,def:2},{key:'default_radius_m',label:'默认半径(m)',type:'number',step:10,def:80}]},
-  start_point:{label:'起点约束',icon:'🟢',fields:[{key:'_point',label:'起点位置',type:'single_point',lat_key:'lat',lon_key:'lon',name_key:'name'},{key:'radius_m',label:'判定半径(m)',type:'number',step:10,def:100}]},
-  end_point:{label:'终点约束',icon:'🔴',fields:[{key:'_point',label:'终点位置',type:'single_point',lat_key:'lat',lon_key:'lon',name_key:'name'},{key:'radius_m',label:'判定半径(m)',type:'number',step:10,def:100}]},
-  loop_to_start:{label:'闭环返回',icon:'🔄',fields:[{key:'radius_m',label:'半径(m)',type:'number',step:10,def:200}]},
-  no_backtrack_on_return:{label:'回程不重走',icon:'🔀',fields:[{key:'max_overlap_ratio',label:'最大重叠率',type:'number',step:0.01,def:0.15}]},
-  require_same_route_return:{label:'要求原路返回',icon:'🔀',fields:[{key:'min_overlap_ratio',label:'最小重叠率',type:'number',step:0.01,def:0.7}]},
-  turn_preference:{label:'转向偏好',icon:'🔀',fields:[{key:'minimize',label:'最小化',type:'select',opts:['left_turn','right_turn','both'],def:'left_turn'},{key:'angle_threshold_deg',label:'角度阈值(°)',type:'number',step:5,def:25},{key:'max_count',label:'最大次数',type:'number',step:1,def:6}]},
-  region_penetration:{label:'边界穿越禁止',icon:'⭕',fields:[{key:'polygon',label:'边界多边形',type:'polygon'},{key:'mode',label:'模式',type:'select',opts:['no_enter','no_exit'],def:'no_enter'},{key:'core_polygon',label:'核心多边形',type:'polygon'},{key:'max_violation_ratio',label:'最大违规比',type:'number',step:0.01,def:0.02},{key:'max_violation_run_m',label:'最大连续违规(m)',type:'number',step:10,def:100}]},
-  region_orbit_uniformity:{label:'绕行均衡性',icon:'⭕',fields:[{key:'polygon',label:'区域多边形',type:'polygon'},{key:'max_boundary_cv',label:'边界CV',type:'number',step:0.05,def:0.45},{key:'max_ring_cv',label:'环带CV',type:'number',step:0.05,def:0.30},{key:'max_side_cv',label:'四向CV',type:'number',step:0.05,def:0.35},{key:'min_exterior_ratio',label:'外围占比',type:'number',step:0.05,def:0.85},{key:'min_sector_coverage',label:'扇区覆盖',type:'number',step:0.05,def:0.625}]},
-  orbit_boundary_proximity:{label:'贴边最近路线',icon:'⭕',fields:[{key:'polygon',label:'多边形',type:'polygon'},{key:'tolerance_m',label:'容忍(m)',type:'number',step:10,def:80},{key:'max_excess_ratio',label:'excess比',type:'number',step:0.01,def:0.12},{key:'n_sectors',label:'扇区数',type:'number',step:1,def:16}]},
-  orbit_parallel_corridors:{label:'冗余平行走廊',icon:'⭕',fields:[{key:'polygon',label:'多边形',type:'polygon'},{key:'angle_tol_deg',label:'角度(°)',type:'number',step:5,def:30},{key:'max_parallel_ratio',label:'平行比',type:'number',step:0.01,def:0.15}]},
-  corridor_follow_uniformity:{label:'走廊跟随均衡',icon:'〰',fields:[{key:'corridor',label:'走廊折线',type:'polyline'},{key:'buffer_m',label:'缓冲(m)',type:'number',step:10,def:120},{key:'max_cv',label:'最大CV',type:'number',step:0.05,def:0.60},{key:'max_mean_deviation_m',label:'偏离(m)',type:'number',step:10,def:80}]},
-  must_pass_corridor:{label:'必经走廊',icon:'〰',fields:[{key:'corridor',label:'走廊折线',type:'polyline'},{key:'buffer_m',label:'缓冲(m)',type:'number',step:10,def:120},{key:'min_continuous_m',label:'连续段(m)',type:'number',step:10,def:200}]},
-  corridor_segment_min_length:{label:'走廊段落长度',icon:'〰',fields:[{key:'corridor',label:'走廊折线',type:'polyline'},{key:'min_length_m',label:'最小总长(m)',type:'number',step:10,def:500},{key:'buffer_m',label:'缓冲(m)',type:'number',step:10,def:80}]},
-  prefer_corridor:{label:'偏好走廊',icon:'〰',fields:[{key:'corridor',label:'走廊折线',type:'polyline'},{key:'buffer_m',label:'缓冲(m)',type:'number',step:10,def:150},{key:'min_coverage_ratio',label:'覆盖率',type:'number',step:0.05,def:0.35}]},
-  multi_lap:{label:'多圈检测',icon:'🔁',fields:[{key:'polygon',label:'多边形',type:'polygon'},{key:'target_laps',label:'圈数',type:'number',step:1,def:1},{key:'lap_tolerance',label:'容差',type:'number',step:0.05,def:0.35}]},
-  avoid_roads:{label:'避开指定道路',icon:'🚫',fields:[{key:'road_names',label:'道路',type:'road_names'},{key:'max_violation_ratio',label:'违规比率',type:'number',step:0.01,def:0.0}]},
-  avoid_point:{label:'避开某点',icon:'⛔',fields:[{key:'_point',label:'要避开的点',type:'single_point',lat_key:'lat',lon_key:'lon',name_key:'name'},{key:'radius_m',label:'安全半径(m)',type:'number',step:10,def:150}]},
-};
+// ================================================================
+//  全局状态
+// ================================================================
 const BID='{{benchmark_id}}';
-let map,networkLayer,entityLayer,allEntities=[],geoOverlays=[];
-// ── 模拟画路状态 ──
-let simMode=false;              // 是否处于模拟画路模式
-let simGraph=null;             // {nodes:Map(id→[lat,lon]), adj:Map(id→[[nbr,w],...]), grid:空间索引}
-let simConfirmed=[];          // 已确认的节点 id 序列
-let simConfirmedLen=0;        // 已确认路径总长(米)
-let simSnap=null;             // 当前吸附的节点 id
-let simLayers=[];             // 模拟路径的 Leaflet 图层
-let simLoading=false;
-let currentMapId=null,currentCaseId=null,caseData=null;
-let captureTarget=null,drawHandler=null;
-function $(id){return document.getElementById(id)}
+let currentCaseId=null, caseData=null, mapObj=null;
+let networkLayer=null, entityLayer=null, geoLayers={}, waypointMarkers=[];
+let currentMapId=null, allEntities=[];
+// 点组编辑状态
+let pgEditing=false, pgPoints=[], pgClickHandler=null;
 
+// ================================================================
+//  指标定义注册表 —— 每个指标的参数 UI 定义
+//  t: number|check|select|georef|georef_pg(点组引用)
+//  gt: georef 限定的几何类型 polygon|polyline|point_group
+// ================================================================
+const MD={
+  max_total_distance:        {label:'路径总长上限',icon:'📏', fields:[
+    {k:'max_km',l:'最大路程(km)',t:'number',s:0.1,d:5}]},
+  min_total_distance:        {label:'路径总长下限',icon:'📏', fields:[
+    {k:'min_km',l:'最小路程(km)',t:'number',s:0.1,d:5}]},
+  target_distance:           {label:'目标里程',icon:'📏', fields:[
+    {k:'target_km',l:'目标(km)',t:'number',s:0.1,d:5},
+    {k:'tolerance_km',l:'容差(km)',t:'number',s:0.1,d:0.5}]},
+  reference_distance:        {label:'参考里程',icon:'📏', fields:[
+    {k:'target_km',l:'参考(km)',t:'number',s:0.1,d:8},
+    {k:'tolerance_km',l:'容差(km)',t:'number',s:0.1,d:1},
+    {k:'min_km',l:'下界(km)',t:'number',s:0.1,d:null},
+    {k:'max_km',l:'上界(km)',t:'number',s:0.1,d:null}]},
+  waypoint_coverage:         {label:'必经点覆盖(分组)',icon:'📍', fields:[
+    {k:'groups',l:'阶段列表',t:'wp_groups',d:[]},
+    {k:'ordered',l:'阶段间要求顺序',t:'check',d:true},
+    {k:'default_radius_m',l:'默认半径(m)',t:'number',s:10,d:80}]},
+  loop_to_start:             {label:'闭环返回',icon:'🔄', fields:[
+    {k:'radius_m',l:'闭环半径(m)',t:'number',s:10,d:200}]},
+  no_backtrack_on_return:    {label:'回程不重走',icon:'🔀', fields:[
+    {k:'max_overlap_ratio',l:'最大重叠率',t:'number',s:0.01,d:0.15}]},
+  require_same_route_return: {label:'要求原路返回',icon:'🔀', fields:[
+    {k:'min_overlap_ratio',l:'最小重叠率',t:'number',s:0.01,d:0.7}]},
+  turn_preference:           {label:'转向偏好',icon:'🔀', fields:[
+    {k:'minimize',l:'最小化',t:'select',opts:['left_turn','right_turn','both'],d:'left_turn'},
+    {k:'angle_threshold_deg',l:'角度阈值(°)',t:'number',s:5,d:25},
+    {k:'max_count',l:'最大次数',t:'number',s:1,d:6}]},
+  region_enclosure:          {label:'区域包围',icon:'⭕', fields:[
+    {k:'polygon',l:'目标区域多边形',t:'georef',gt:'polygon'},
+    {k:'closure_radius_m',l:'闭合半径(m)',t:'number',s:10,d:150},
+    {k:'min_containment_ratio',l:'最小包围比例',t:'number',s:0.05,d:1.0},
+    {k:'max_violation_ratio',l:'允许穿入比例',t:'number',s:0.01,d:0}]},
+  region_penetration:        {label:'区域穿入禁止',icon:'⭕', fields:[
+    {k:'polygon',l:'外围多边形',t:'georef',gt:'polygon'},
+    {k:'core_polygon',l:'核心多边形',t:'georef',gt:'polygon'},
+    {k:'max_interior_ratio',l:'最大穿入比例',t:'number',s:0.01,d:0.02},
+    {k:'max_interior_run_m_val',l:'最大连续穿入(m)',t:'number',s:10,d:100}]},
+  region_orbit_uniformity:   {label:'绕行均衡性',icon:'⭕', fields:[
+    {k:'polygon',l:'区域多边形',t:'georef',gt:'polygon'},
+    {k:'max_boundary_cv',l:'边界CV',t:'number',s:0.05,d:0.45},
+    {k:'max_ring_cv',l:'环带CV',t:'number',s:0.05,d:0.30},
+    {k:'max_side_cv',l:'四向CV',t:'number',s:0.05,d:0.35},
+    {k:'min_exterior_ratio',l:'最小外围占比',t:'number',s:0.05,d:0.85},
+    {k:'min_sector_coverage',l:'最小扇区覆盖',t:'number',s:0.05,d:0.625}]},
+  orbit_boundary_proximity:  {label:'贴边最近路线',icon:'⭕', fields:[
+    {k:'polygon',l:'区域多边形',t:'georef',gt:'polygon'},
+    {k:'tolerance_m',l:'容忍偏移(m)',t:'number',s:10,d:80},
+    {k:'max_excess_ratio',l:'最大excess比',t:'number',s:0.01,d:0.12},
+    {k:'n_sectors',l:'扇区数',t:'number',s:1,d:16}]},
+  orbit_parallel_corridors:  {label:'冗余平行走廊',icon:'⭕', fields:[
+    {k:'polygon',l:'区域多边形',t:'georef',gt:'polygon'},
+    {k:'angle_tol_deg',l:'角度容忍(°)',t:'number',s:5,d:30},
+    {k:'max_parallel_ratio',l:'最大平行比',t:'number',s:0.01,d:0.15}]},
+  corridor_follow_uniformity:{label:'走廊跟随均衡',icon:'〰', fields:[
+    {k:'corridor',l:'走廊折线',t:'georef',gt:'polyline'},
+    {k:'buffer_m',l:'缓冲区(m)',t:'number',s:10,d:120},
+    {k:'max_cv',l:'最大CV',t:'number',s:0.05,d:0.60},
+    {k:'max_mean_deviation_m',l:'最大平均偏离(m)',t:'number',s:10,d:80}]},
+  must_pass_corridor:        {label:'必经走廊',icon:'〰', fields:[
+    {k:'corridor',l:'走廊折线',t:'georef',gt:'polyline'},
+    {k:'buffer_m',l:'缓冲区(m)',t:'number',s:10,d:120},
+    {k:'min_continuous_m',l:'最小连续段(m)',t:'number',s:10,d:200}]},
+  corridor_segment_min_length:{label:'走廊段落长度',icon:'〰', fields:[
+    {k:'corridor',l:'走廊折线',t:'georef',gt:'polyline'},
+    {k:'min_length_m',l:'最小总长(m)',t:'number',s:10,d:500},
+    {k:'buffer_m',l:'缓冲区(m)',t:'number',s:10,d:80}]},
+  prefer_corridor:           {label:'偏好走廊',icon:'〰', fields:[
+    {k:'corridor',l:'走廊折线',t:'georef',gt:'polyline'},
+    {k:'buffer_m',l:'缓冲区(m)',t:'number',s:10,d:150},
+    {k:'min_coverage_ratio',l:'最小覆盖率',t:'number',s:0.05,d:0.35}]},
+  multi_lap:                 {label:'多圈检测',icon:'🔁', fields:[
+    {k:'polygon',l:'区域多边形',t:'georef',gt:'polygon'},
+    {k:'target_laps',l:'目标圈数',t:'number',s:1,d:1},
+    {k:'lap_tolerance',l:'圈数容差',t:'number',s:0.05,d:0.35}]},
+};
+
+// ================================================================
+//  初始化
+// ================================================================
 async function init(){
-  map=L.map('map',{zoomControl:false}).setView([39.99,116.33],14);
-  L.control.zoom({position:'bottomleft'}).addTo(map);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(map);
-  // 用户配置的几何(走廊/多边形/起终点/途经点)专属图层，z-index 高于路网和实体，确保始终可见
-  map.createPane('geoPane');map.getPane('geoPane').style.zIndex=650;
-  // 模拟画路图层，最高层级
-  map.createPane('simPane');map.getPane('simPane').style.zIndex=680;
-  const maps=await api('/api/maps');const sel=$('sel-map');
-  maps.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.name;sel.appendChild(o)});
+  mapObj=L.map('map',{zoomControl:false}).setView([39.99,116.33],14);
+  L.control.zoom({position:'bottomright'}).addTo(mapObj);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(mapObj);
+  const maps=await(await fetch('/api/maps')).json();
+  const sel=document.getElementById('sel-map');
+  maps.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.name||m.filename||m.id;sel.appendChild(o)});
   await loadCases();
-  map.on(L.Draw.Event.CREATED,onDrawCreated);
+  document.getElementById('sel-add-metric').onchange=function(){if(this.value){addMetric(this.value);this.value=''}};
+  mapObj.on(L.Draw.Event.CREATED, onDrawCreated);
 }
-function catColor(c){if(!c)return'#64748b';const m={'green':'#16a34a','leisure':'#16a34a','education':'#ea580c','water':'#2563eb','nature/water':'#2563eb','sport':'#7c3aed','food':'#dc2626','waterway':'#2563eb','building':'#78716c','service':'#0891b2'};for(const[k,v] of Object.entries(m))if(c.startsWith(k))return v;return'#64748b'}
-// 路网显示模式：'highlight'(醒目高亮) | 'subtle'(淡显) | 'hidden'(隐藏)
-let netMode='highlight';
-function netStyle(f){
-  const named=!!f.properties.name;
-  if(netMode==='subtle')
-    return {color:named?'#94a3b8':'#cbd5e1',weight:named?1.4:.8,opacity:named?.55:.35};
-  // highlight：可通行边在底图上明确跳出（青绿，描边感）
-  return {color:named?'#0d9488':'#2dd4bf',weight:named?3:2,opacity:named?.9:.7};
-}
-function applyNetMode(){
-  if(!networkLayer)return;
-  if(netMode==='hidden'){if(map.hasLayer(networkLayer))map.removeLayer(networkLayer)}
-  else{if(!map.hasLayer(networkLayer))networkLayer.addTo(map);networkLayer.setStyle(netStyle);if(networkLayer.bringToBack)networkLayer.bringToBack()}
-  // 更新按钮高亮
-  ['highlight','subtle','hidden'].forEach(mo=>{const b=document.getElementById('netbtn-'+mo);if(b)b.classList.toggle('on',mo===netMode)});
-}
-function setNetMode(mo){netMode=mo;applyNetMode()}
+
+// ================================================================
+//  地图
+// ================================================================
+function catColor(c){if(!c)return'#546E7A';if(c.startsWith('green')||c.startsWith('leisure'))return'#16a34a';if(c.startsWith('education'))return'#ea580c';if(c.startsWith('water')||c.startsWith('nature/water'))return'#2563eb';if(c.startsWith('sport'))return'#7c3aed';if(c.startsWith('food'))return'#dc2626';return'#546E7A'}
+
 async function switchMap(mid){
-  if(simMode)exitSimMode();
   currentMapId=mid;
-  if(networkLayer){map.removeLayer(networkLayer);networkLayer=null}
-  if(entityLayer){map.removeLayer(entityLayer);entityLayer=null}
-  clearGeoOverlays();
-  $('map-info').innerHTML='';$('net-toggle').style.display='none';if(!mid)return;
-  try{const i=await api(`/api/maps/${mid}/summary`);$('map-info').innerHTML=`节点 ${i.nodes} · 边 ${i.edges}${i.named_edges?' · 命名 '+i.named_edges:''}<br>实体 ${i.entities}`}catch(e){}
-  const net=await api(`/api/maps/${mid}/network`);
-  networkLayer=L.geoJSON(net,{style:netStyle,onEachFeature:(f,l)=>{if(f.properties.name)l.bindTooltip(f.properties.name,{sticky:true,className:'road-tip'})}}).addTo(map);
-  if(networkLayer.bringToBack)networkLayer.bringToBack();
-  const ent=await api(`/api/maps/${mid}/entities`);allEntities=ent.features||[];
-  entityLayer=L.geoJSON(ent,{style:f=>({color:catColor(f.properties.category),weight:2,fillOpacity:.1,dashArray:f.properties.geom_type==='polyline'?'6,4':null}),pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:4,fillColor:catColor(f.properties.category),fillOpacity:.85,stroke:false}),onEachFeature:(f,l)=>{if(f.properties.name)l.bindTooltip(f.properties.name,{sticky:true});l.on('click',()=>onEntClick(f))}}).addTo(map);
-  $('net-toggle').style.display='flex';applyNetMode();
-  if(networkLayer.getBounds&&networkLayer.getBounds().isValid())map.fitBounds(networkLayer.getBounds(),{padding:[34,34]});
+  if(networkLayer){mapObj.removeLayer(networkLayer);networkLayer=null}
+  if(entityLayer){mapObj.removeLayer(entityLayer);entityLayer=null}
+  if(!mid)return;
+  const net=await(await fetch(`/api/maps/${mid}/network`)).json();
+  networkLayer=L.geoJSON(net,{style:{color:'#94a3b8',weight:1,opacity:0.45},interactive:false}).addTo(mapObj);
+  const ent=await(await fetch(`/api/maps/${mid}/entities`)).json();
+  allEntities=ent.features||[];
+  entityLayer=L.geoJSON(ent,{
+    style:f=>({color:catColor(f.properties.category),weight:2,fillOpacity:0.1,dashArray:f.properties.geom_type==='polyline'?'6,4':null}),
+    pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:4,fillColor:catColor(f.properties.category),fillOpacity:0.8,stroke:false}),
+    onEachFeature:(f,layer)=>{if(f.properties.name)layer.bindTooltip(f.properties.name,{sticky:true,className:'entity-tip'});layer.on('click',()=>onEntityClick(f))}
+  }).addTo(mapObj);
+  if(networkLayer.getBounds().isValid())mapObj.fitBounds(networkLayer.getBounds(),{padding:[30,30]});
 }
+
+function setMapMode(mode){
+  document.querySelectorAll('.map-toolbar .tool-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('tool-'+mode);if(btn)btn.classList.add('active');
+  mapObj.getContainer().style.cursor=mode==='browse'?'':'crosshair';
+}
+
+// ================================================================
+//  用例管理
+// ================================================================
 async function loadCases(){
-  const cs=await api(`/api/benchmarks/${BID}/cases`);const el=$('case-list');
-  if(!cs.length){el.innerHTML='<div class="rail-empty">暂无用例<br>选择地图后<br>点击下方按钮创建</div>';return}
-  el.innerHTML=cs.map(c=>{
-    let hardN=0,softN=0;try{const ms=typeof c.metrics==='string'?JSON.parse(c.metrics):(c.metrics||[]);ms.forEach(m=>m.is_hard?hardN++:softN++)}catch(e){}
-    const chips=(hardN?`<span class="chip chip-h">${hardN}硬</span>`:'')+(softN?`<span class="chip chip-n">${softN}软</span>`:'');
-    return`<div class="case ${c.id===currentCaseId?'on':''}" onclick="selectCase('${c.id}')"><div class="case-txt">${c.instruction||'(未填指令)'}</div><div class="case-meta"><span class="case-id">${c.id.slice(0,5)}</span>${chips}</div></div>`}).join('');
+  const cases=await(await fetch(`/api/benchmarks/${BID}/cases`)).json();
+  document.getElementById('case-list').innerHTML=cases.map(c=>`
+    <div class="item ${c.id===currentCaseId?'active':''}" onclick="selectCase('${c.id}')">
+      <span class="item-text">${c.instruction||'(未填指令)'}</span>
+      <span class="badge">${c.id.slice(0,4)}</span>
+    </div>`).join('')||'<div class="muted" style="padding:12px;font-size:12px;text-align:center">暂无用例</div>';
 }
-async function addCase(){if(!currentMapId){toast('⚠ 请先选择地图');return}const r=await api(`/api/benchmarks/${BID}/cases`,'POST',{map_db_id:currentMapId});await loadCases();selectCase(r.id)}
+async function addCase(){
+  if(!currentMapId){alert('请先在左下角选择一张地图');return}
+  const res=await fetch(`/api/benchmarks/${BID}/cases`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({map_db_id:currentMapId})});
+  const{id}=await res.json();await loadCases();selectCase(id);
+}
 async function selectCase(cid){
-  if(simMode)exitSimMode();
-  currentCaseId=cid;caseData=await api(`/api/cases/${cid}`);
+  currentCaseId=cid;
+  caseData=await(await fetch(`/api/cases/${cid}`)).json();
+  // 解析几何坐标
   (caseData.geometries||[]).forEach(g=>{if(typeof g.coordinates==='string')g.coordinates=JSON.parse(g.coordinates)});
-  (caseData.metrics||[]).forEach(m=>{if(typeof m.params==='string')m.params=JSON.parse(m.params)});
-  if(caseData.map_db_id&&caseData.map_db_id!==currentMapId){$('sel-map').value=caseData.map_db_id;await switchMap(caseData.map_db_id)}
-  $('ed-blank').style.display='none';$('ed-flow').style.display='flex';
-  $('inp-instruction').value=caseData.instruction||'';$('inp-notes').value=caseData.notes||'';
-  renderMetrics();renderGeoOnMap();loadCases();runLint();
+  if(caseData.map_db_id&&caseData.map_db_id!==currentMapId){document.getElementById('sel-map').value=caseData.map_db_id;await switchMap(caseData.map_db_id)}
+  document.getElementById('no-case-hint').style.display='none';
+  document.getElementById('case-editor').style.display='block';
+  document.getElementById('inp-instruction').value=caseData.instruction||'';
+  renderGeoBank();renderMetrics();loadCases();
 }
 async function saveCase(){
   if(!currentCaseId)return;
-  await api(`/api/cases/${currentCaseId}`,'PUT',{map_db_id:currentMapId,instruction:$('inp-instruction').value,notes:$('inp-notes').value,geometries:[],metrics:collectMetrics()});
-  await selectCase(currentCaseId);toast('✓ 已保存');
+  const metrics=collectMetrics();
+  const geometries=(caseData.geometries||[]).map(g=>({id:g.id,name:g.name,geom_type:g.geom_type,coordinates:g.coordinates,source_entity_id:g.source_entity_id,color:g.color}));
+  await fetch(`/api/cases/${currentCaseId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({map_db_id:currentMapId,instruction:document.getElementById('inp-instruction').value,geometries,metrics,notes:caseData.notes||''})});
+  await selectCase(currentCaseId);showToast('✓ 已保存');
 }
-async function deleteCase(){if(!currentCaseId||!confirm('确定删除此用例？'))return;await api(`/api/cases/${currentCaseId}`,'DELETE');currentCaseId=null;caseData=null;$('ed-flow').style.display='none';$('ed-blank').style.display='flex';clearGeoOverlays();loadCases()}
+async function deleteCurrentCase(){
+  if(!currentCaseId||!confirm('确定删除此用例？'))return;
+  await fetch(`/api/cases/${currentCaseId}`,{method:'DELETE'});
+  currentCaseId=null;caseData=null;
+  document.getElementById('case-editor').style.display='none';
+  document.getElementById('no-case-hint').style.display='flex';
+  clearGeoLayers();loadCases();
+}
 
+// ================================================================
+//  几何对象库
+// ================================================================
+function renderGeoBank(){
+  const geos=caseData?.geometries||[];
+  document.getElementById('geo-list').innerHTML=geos.map(g=>{
+    const icon=g.geom_type==='polygon'?'⬡':g.geom_type==='polyline'?'〰':'📍';
+    const n=Array.isArray(g.coordinates)?g.coordinates.length:0;
+    const meta=g.geom_type==='point_group'?`${n} 个点`:`${n} 顶点`;
+    return`<div class="item geo-item" onclick="focusGeo('${g.id}')">
+      <span class="geo-icon" style="color:${g.color||'#2563eb'}">${icon}</span>
+      <span class="geo-label">${g.name}</span>
+      <span class="geo-meta">${meta}</span>
+      <button class="btn-icon" onclick="event.stopPropagation();editGeo('${g.id}')" title="编辑">✏️</button>
+      <button class="btn-icon" onclick="event.stopPropagation();removeGeo('${g.id}')" title="删除">×</button>
+    </div>`
+  }).join('')||'<div class="muted" style="padding:14px;font-size:12px;text-align:center">点击下方按钮添加几何对象<br>然后在指标中引用它们</div>';
+  renderGeoOnMap();
+}
+function renderGeoOnMap(){
+  clearGeoLayers();clearWaypointMarkers();
+  (caseData?.geometries||[]).forEach(g=>{
+    const coords=g.coordinates;if(!coords||!coords.length)return;
+    let layer;
+    if(g.geom_type==='polygon'){
+      layer=L.polygon(coords.map(c=>[c[0],c[1]]),{color:g.color||'#2563eb',weight:2.5,fillOpacity:0.08,dashArray:null});
+    }else if(g.geom_type==='polyline'){
+      layer=L.polyline(coords.map(c=>[c[0],c[1]]),{color:g.color||'#2563eb',weight:3});
+    }else if(g.geom_type==='point_group'){
+      coords.forEach((pt,i)=>{
+        if(!pt.lat&&!pt[0])return;
+        const lat=pt.lat||pt[0], lon=pt.lon||pt[1];
+        const m=L.marker([lat,lon],{icon:L.divIcon({className:'',html:`<div class="wp-num" style="width:24px;height:24px;font-size:12px;position:relative;left:-12px;top:-12px">${i+1}</div>`,iconSize:[0,0]})});
+        if(pt.name)m.bindTooltip(pt.name,{permanent:false});
+        m.addTo(mapObj);waypointMarkers.push(m);
+        if(pt.radius_m){
+          const circle=L.circle([lat,lon],{radius:pt.radius_m,color:g.color||'#2563eb',weight:1,fillOpacity:0.06});
+          circle.addTo(mapObj);waypointMarkers.push(circle);
+        }
+      });
+      return;
+    }
+    if(layer){layer.bindTooltip(g.name,{sticky:true});layer.addTo(mapObj);geoLayers[g.id]=layer}
+  });
+}
+function clearGeoLayers(){Object.values(geoLayers).forEach(l=>mapObj.removeLayer(l));geoLayers={}}
+function clearWaypointMarkers(){waypointMarkers.forEach(m=>mapObj.removeLayer(m));waypointMarkers=[]}
+function focusGeo(gid){const l=geoLayers[gid];if(l&&l.getBounds)mapObj.fitBounds(l.getBounds(),{padding:[50,50]})}
+function removeGeo(gid){if(!caseData)return;caseData.geometries=caseData.geometries.filter(g=>g.id!==gid);renderGeoBank();renderMetrics()}
+function editGeo(gid){
+  const g=(caseData?.geometries||[]).find(x=>x.id===gid);if(!g)return;
+  if(g.geom_type==='point_group'){
+    // 打开点组编辑器
+    pgEditing=true;pgPoints=[...g.coordinates];
+    document.getElementById('pg-name').value=g.name;
+    document.getElementById('pg-editor').style.display='block';
+    renderPgList();
+    // 删除旧的，保存时重新创建
+    removeGeo(gid);
+    enablePgMapClick();
+  }
+}
+function addGeoToBank(name,geomType,coordinates,color,srcEid){
+  if(!caseData)return;if(!caseData.geometries)caseData.geometries=[];
+  const id='g_'+Math.random().toString(36).slice(2,8);
+  caseData.geometries.push({id,name,geom_type:geomType,coordinates,color:color||'#2563eb',source_entity_id:srcEid||null});
+  renderGeoBank();renderMetrics();
+}
+
+// ── 绘制多边形/折线 ──
+let drawHandler=null;
+function startDraw(type){
+  cancelPointGroup();
+  if(drawHandler){drawHandler.disable();drawHandler=null}
+  const opts={shapeOptions:{color:type==='polygon'?'#dc2626':'#2563eb',weight:3}};
+  drawHandler=type==='polygon'?new L.Draw.Polygon(mapObj,opts):new L.Draw.Polyline(mapObj,opts);
+  drawHandler.enable();
+  setMapMode(type);
+}
+function onDrawCreated(e){
+  const type=e.layerType,layer=e.layer;
+  const geomType=type==='polygon'?'polygon':'polyline';
+  const lls=type==='polygon'?layer.getLatLngs()[0]:layer.getLatLngs();
+  const coords=lls.map(ll=>[Math.round(ll.lat*1e6)/1e6,Math.round(ll.lng*1e6)/1e6]);
+  const name=prompt(`${geomType==='polygon'?'多边形':'折线'}名称：`);
+  if(!name)return;
+  const color=geomType==='polygon'?'#dc2626':'#2563eb';
+  addGeoToBank(name,geomType,coords,color);
+  drawHandler=null;setMapMode('browse');
+}
+
+// ── 点组编辑 ──
+function startPointGroup(){
+  if(!caseData){alert('请先选择一个用例');return}
+  cancelPointGroup();
+  pgEditing=true;pgPoints=[];
+  document.getElementById('pg-name').value='';
+  document.getElementById('pg-editor').style.display='block';
+  renderPgList();enablePgMapClick();
+  setMapMode('point');
+}
+function enablePgMapClick(){
+  pgClickHandler=function(e){
+    if(!pgEditing)return;
+    pgPoints.push({name:'',lat:Math.round(e.latlng.lat*1e6)/1e6,lon:Math.round(e.latlng.lng*1e6)/1e6,radius_m:80});
+    renderPgList();renderGeoOnMap();
+  };
+  mapObj.on('click',pgClickHandler);
+}
+function cancelPointGroup(){
+  pgEditing=false;pgPoints=[];
+  document.getElementById('pg-editor').style.display='none';
+  if(pgClickHandler){mapObj.off('click',pgClickHandler);pgClickHandler=null}
+  setMapMode('browse');
+}
+function savePointGroup(){
+  const name=document.getElementById('pg-name').value.trim();
+  if(!name){alert('请输入点组名称');return}
+  // 从 DOM 收集最新的编辑值
+  document.querySelectorAll('#pg-point-list .wp-row').forEach((row,i)=>{
+    if(!pgPoints[i])return;
+    pgPoints[i].name=row.querySelector('[data-f="name"]')?.value||'';
+    pgPoints[i].radius_m=parseFloat(row.querySelector('[data-f="radius_m"]')?.value)||80;
+  });
+  addGeoToBank(name,'point_group',pgPoints,'#16a34a');
+  cancelPointGroup();
+}
+function removePgPoint(i){pgPoints.splice(i,1);renderPgList();renderGeoOnMap()}
+function renderPgList(){
+  // 暂时渲染到地图上
+  clearWaypointMarkers();
+  pgPoints.forEach((pt,i)=>{
+    const m=L.marker([pt.lat,pt.lon],{icon:L.divIcon({className:'',html:`<div class="wp-num" style="width:24px;height:24px;font-size:12px;position:relative;left:-12px;top:-12px">${i+1}</div>`,iconSize:[0,0]})}).addTo(mapObj);
+    waypointMarkers.push(m);
+    const c=L.circle([pt.lat,pt.lon],{radius:pt.radius_m||80,color:'#16a34a',weight:1,fillOpacity:0.06}).addTo(mapObj);
+    waypointMarkers.push(c);
+  });
+  document.getElementById('pg-point-list').innerHTML=pgPoints.map((pt,i)=>`
+    <div class="wp-row">
+      <span class="wp-num">${i+1}</span>
+      <div class="wp-fields">
+        <span class="wp-field name-field"><input class="input input-xs" data-f="name" value="${pt.name||''}" placeholder="名称" style="width:70px"></span>
+        <span class="wp-field">lat <input class="input input-xs" value="${pt.lat}" readonly style="width:75px;color:var(--text-3)"></span>
+        <span class="wp-field">lon <input class="input input-xs" value="${pt.lon}" readonly style="width:75px;color:var(--text-3)"></span>
+        <span class="wp-field">r <input class="input input-xs" data-f="radius_m" value="${pt.radius_m||80}" type="number" step="10" style="width:55px"> m</span>
+      </div>
+      <button class="btn-icon" onclick="removePgPoint(${i})">×</button>
+    </div>`).join('')||'<div class="muted" style="padding:8px;font-size:12px;text-align:center">点击地图添加点位</div>';
+}
+
+// ── 实体捕获 ──
+function onEntityClick(feature){
+  const p=feature.properties;if(!caseData){alert('请先选择用例');return}
+  const name=prompt(`将「${p.name||p.category}」添加到几何库，名称：`,p.name||'');if(!name)return;
+  let coords=null,geomType='polygon';const geom=feature.geometry;
+  if(geom.type==='Polygon'){coords=geom.coordinates[0].map(c=>[c[1],c[0]]);geomType='polygon'}
+  else if(geom.type==='LineString'){coords=geom.coordinates.map(c=>[c[1],c[0]]);geomType='polyline'}
+  else if(geom.type==='Point'){
+    // 点实体添加到正在编辑的点组（如果有）
+    if(pgEditing){
+      pgPoints.push({name:p.name||name,lat:geom.coordinates[1],lon:geom.coordinates[0],radius_m:80});
+      renderPgList();return;
+    }
+    coords=[{name:p.name||name,lat:geom.coordinates[1],lon:geom.coordinates[0],radius_m:80}];geomType='point_group';
+  }
+  if(!coords){alert('无法提取几何');return}
+  addGeoToBank(name,geomType,coords,catColor(p.category),p.eid);
+}
+
+// ── 实体搜索 ──
+let entSearchOpen=false;
+function toggleEntitySearch(){
+  entSearchOpen=!entSearchOpen;
+  document.getElementById('entity-search').style.display=entSearchOpen?'block':'none';
+  if(entSearchOpen){document.getElementById('ent-q').value='';searchEntities();document.getElementById('ent-q').focus()}
+}
+function searchEntities(){
+  const q=document.getElementById('ent-q').value.toLowerCase();
+  const results=allEntities.filter(f=>(f.properties.name||'').toLowerCase().includes(q)).slice(0,30);
+  document.getElementById('ent-results').innerHTML=results.map(f=>{
+    const p=f.properties;
+    return`<div class="ent-item" onclick='onEntityClick(${JSON.stringify(f)});toggleEntitySearch()'>
+      <span class="ent-dot" style="background:${catColor(p.category)}"></span>
+      <span style="flex:1;font-weight:500">${p.name||'(无名)'}</span>
+      <span style="color:var(--text-3);font-size:11px">${p.geom_type}</span>
+    </div>`
+  }).join('')||'<div class="muted" style="padding:12px;text-align:center">无匹配结果</div>';
+}
+
+// ================================================================
+//  指标编辑
+// ================================================================
 function renderMetrics(){
   const ms=caseData?.metrics||[];
-  $('metric-list').innerHTML=ms.map((m,i)=>{const d=MD[m.metric_type];if(!d)return'';
-    return`<div class="mc ${m._ex?'expanded':''}" id="mc-${i}"><div class="mc-h" onclick="togM(${i})"><span class="mc-badge ${m.is_hard?'hard':'soft'}">${m.is_hard?'硬':'软'}</span><span class="mc-ico">${d.icon}</span><span class="mc-name">${d.label}</span><span class="mc-w">w ${m.weight}</span><button class="mc-x" onclick="event.stopPropagation();rmM(${i})">×</button></div><div class="mc-body">${renderFields(m,d,i)}<div class="mc-foot"><label>权重 <input type="number" step="0.01" min="0" max="1" value="${m.weight}" class="inp-sm" style="width:66px" data-mi="${i}" data-fk="__w" oninput="setMetricMeta(${i},'weight',this)"></label><label><input type="checkbox" ${m.is_hard?'checked':''} data-mi="${i}" data-fk="__h" onchange="setMetricMeta(${i},'is_hard',this)"> 硬约束</label><span class="hint">${m.is_hard?'未达标→总分封顶':'权重计入软分'}</span></div></div></div>`;
+  document.getElementById('metric-list').innerHTML=ms.map((m,i)=>{
+    const def=MD[m.metric_type];if(!def)return'';
+    return`<div class="metric-card" id="mc-${i}">
+      <div class="metric-header" onclick="toggleMetric(${i})">
+        <span class="tag ${m.is_hard?'tag-hard':'tag-soft'}">${m.is_hard?'硬':'软'}</span>
+        <span style="font-size:14px">${def.icon||''}</span>
+        <span class="metric-name">${def.label}</span>
+        <span class="metric-weight">w=${m.weight}</span>
+        <button class="btn-icon" onclick="event.stopPropagation();removeMetric(${i})" title="删除">×</button>
+      </div>
+      <div class="metric-body" id="mb-${i}" style="display:none">
+        <div class="metric-fields">${renderFields(m,def,i)}</div>
+        <div class="metric-footer">
+          <label style="display:flex;align-items:center;gap:4px">权重 <input type="number" step="0.01" value="${m.weight}" min="0" max="1" class="input input-xs" style="width:65px" data-mi="${i}" data-fk="__weight"></label>
+          <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" ${m.is_hard?'checked':''} data-mi="${i}" data-fk="__hard"> 硬约束</label>
+        </div>
+      </div>
+    </div>`;
   }).join('');
 }
-function renderFields(m,d,mi){return d.fields.map(f=>{const v=m.params?.[f.key],val=v!==undefined&&v!==null?v:f.def;
-  if(f.type==='number')return`<div class="fld"><label>${f.label}</label><input type="number" step="${f.step||1}" value="${val??''}" data-mi="${mi}" data-fk="${f.key}" placeholder="${f.def??''}" oninput="setMetricParam(${mi},'${f.key}','number',this)"></div>`;
-  if(f.type==='check')return`<div class="fld"><label>${f.label}</label><input type="checkbox" ${val?'checked':''} data-mi="${mi}" data-fk="${f.key}" onchange="setMetricParam(${mi},'${f.key}','check',this)"></div>`;
-  if(f.type==='select')return`<div class="fld"><label>${f.label}</label><select data-mi="${mi}" data-fk="${f.key}" onchange="setMetricParam(${mi},'${f.key}','select',this)">${f.opts.map(o=>`<option ${val===o?'selected':''}>${o}</option>`).join('')}</select></div>`;
-  if(f.type==='waypoints')return renderWP(m,mi);
-  if(f.type==='single_point')return renderSP(m,mi,f);
-  if(f.type==='polygon')return renderGF(m,mi,f.key,f.label,'polygon');
-  if(f.type==='polyline')return renderGF(m,mi,f.key,f.label,'polyline');
-  if(f.type==='road_names')return renderRN(m,mi,f.key);
-  return'';}).join('')}
-// 立即把参数字段写回内存，避免重渲染丢失
-function setMetricParam(mi,key,type,el){
-  if(!caseData?.metrics?.[mi])return;
-  const p=caseData.metrics[mi].params;
-  if(type==='check')p[key]=el.checked;
-  else if(type==='number'){const v=parseFloat(el.value);p[key]=isNaN(v)?null:v}
-  else p[key]=el.value||null;
-  clearTimeout(window._lintT);window._lintT=setTimeout(runLint,400);
+
+function renderFields(metric,def,mi){
+  return def.fields.map(f=>{
+    const v=metric.params?.[f.k];const val=v!==undefined&&v!==null?v:f.d;
+    if(f.t==='number'){
+      return`<div class="field-row"><span class="field-label">${f.l}</span><input type="number" step="${f.s||1}" value="${val??''}" class="input input-xs" data-mi="${mi}" data-fk="${f.k}" placeholder="${f.d??''}"></div>`;
+    }
+    if(f.t==='check'){
+      return`<div class="field-row"><span class="field-label">${f.l}</span><input type="checkbox" ${val?'checked':''} data-mi="${mi}" data-fk="${f.k}"></div>`;
+    }
+    if(f.t==='select'){
+      const opts=f.opts.map(o=>`<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('');
+      return`<div class="field-row"><span class="field-label">${f.l}</span><select class="input input-xs" style="width:120px" data-mi="${mi}" data-fk="${f.k}">${opts}</select></div>`;
+    }
+    if(f.t==='georef'){
+      const geos=(caseData?.geometries||[]).filter(g=>g.geom_type===f.gt);
+      const isRef=typeof val==='string'&&val.startsWith('@geo:');
+      const selName=isRef?val.slice(5):'';
+      const opts=`<option value="">(未选择)</option>`+geos.map(g=>`<option value="@geo:${g.name}" ${g.name===selName?'selected':''}>${g.name}</option>`).join('');
+      const hint=geos.length===0?`<span style="color:var(--red);font-size:11px;margin-left:4px">← 请先在几何库中添加${f.gt==='polygon'?'多边形':f.gt==='polyline'?'折线':'点组'}</span>`:'';
+      return`<div class="field-row"><span class="field-label">${f.l}</span><select class="input input-xs" style="width:140px" data-mi="${mi}" data-fk="${f.k}">${opts}</select>${hint}</div>`;
+    }
+    if(f.t==='wp_groups'){
+      // 阶段列表：每个阶段引用一个点组 + 最少经过数
+      const pgs=(caseData?.geometries||[]).filter(g=>g.geom_type==='point_group');
+      const stages=Array.isArray(val)?val:[];
+      const rows=stages.map((st,si)=>{
+        const sel=typeof st.points==='string'&&st.points.startsWith('@geo:')?st.points.slice(5):'';
+        const opts=`<option value="">(未选择)</option>`+pgs.map(g=>{
+          const n=Array.isArray(g.coordinates)?g.coordinates.length:0;
+          return`<option value="@geo:${g.name}" ${g.name===sel?'selected':''}>${g.name} (${n}点)</option>`;
+        }).join('');
+        return`<div class="wp-row">
+          <span class="wp-num">${si+1}</span>
+          <div class="wp-fields">
+            <span class="wp-field">点组 <select class="input input-xs" style="width:130px" data-mi="${mi}" data-gsi="${si}" data-gsf="points">${opts}</select></span>
+            <span class="wp-field">至少经过 <input type="number" min="1" step="1" value="${st.min_count||1}" class="input input-xs" style="width:50px" data-mi="${mi}" data-gsi="${si}" data-gsf="min_count"> 个</span>
+          </div>
+          <button class="btn-icon" onclick="removeWpStage(${mi},${si})" title="删除阶段">×</button>
+        </div>`;
+      }).join('');
+      const hint=pgs.length===0?`<div style="color:var(--red);font-size:11px;padding:3px 0">← 请先在左侧几何库中「📍 创建点组」</div>`:'';
+      return`<div class="field-group">
+        <div class="field-group-title">${f.l} — 有序模式下按阶段依次完成</div>
+        ${rows||'<div class="muted" style="font-size:12px;padding:2px 0">暂无阶段，点击下方添加</div>'}
+        ${hint}
+        <button class="btn btn-xs" onclick="addWpStage(${mi})" style="margin-top:6px">+ 添加阶段</button>
+      </div>`;
+    }
+    return'';
+  }).join('');
 }
-// 立即把权重/硬约束写回内存，避免下次 renderMetrics 用旧内存值刷掉用户的修改
-function setMetricMeta(i,key,el){
-  if(!caseData?.metrics?.[i])return;
-  if(key==='weight'){const v=parseFloat(el.value);caseData.metrics[i].weight=isNaN(v)?0:v}
-  else if(key==='is_hard'){caseData.metrics[i].is_hard=el.checked?1:0;
-    // 同步更新该卡片的徽章与提示，无需整体重渲染
-    const card=document.getElementById('mc-'+i);
-    if(card){const b=card.querySelector('.mc-badge');if(b){b.className='mc-badge '+(el.checked?'hard':'soft');b.textContent=el.checked?'硬':'软'}
-      const h=card.querySelector('.mc-foot .hint');if(h)h.textContent=el.checked?'未达标→总分封顶':'权重计入软分'}}
-  clearTimeout(window._lintT);window._lintT=setTimeout(runLint,400);
+
+function toggleMetric(i){
+  const el=document.getElementById('mb-'+i);
+  const card=document.getElementById('mc-'+i);
+  const show=el.style.display==='none';
+  el.style.display=show?'block':'none';
+  card.classList.toggle('expanded',show);
 }
-// Waypoints
-function renderWP(m,mi){const wps=Array.isArray(m.params?.waypoints)?m.params.waypoints:[];
-  return`<div class="sub"><label>途经点 (${wps.length})</label><div class="wp-list">${wps.map((w,i)=>`<div class="wp-row"><span class="wp-n">${i+1}</span><span class="wp-nm">${w.name||'—'}</span><span class="wp-co">${(w.lat||0).toFixed(4)},${(w.lon||0).toFixed(4)} r${w.radius_m||80}</span><div style="display:flex;gap:2px"><button class="wp-b" onclick="editWP(${mi},${i})">✏</button><button class="wp-b" onclick="rmWP(${mi},${i})">×</button></div></div>`).join('')||'<div class="wp-row" style="color:var(--ink-3);font-size:11.5px;justify-content:center">尚未添加途经点</div>'}</div><div class="add-row"><button onclick="wpSearch(${mi})">🔍 搜索实体</button><button onclick="wpPlace(${mi})">📌 点地图</button><button onclick="wpManual(${mi})">✏️ 输坐标</button></div></div>`}
-function wpSearch(mi){captureTarget={type:'waypoint',metricIdx:mi};openSearch('📍 搜索实体添加途经点 — 可连续添加多个')}
-function wpPlace(mi){captureTarget={type:'wp_place',metricIdx:mi};toast('📌 点击地图放置途经点');map.once('click',e=>{const n=prompt('途经点名称:','');if(n===null){captureTarget=null;return}addWP(mi,{name:n,lat:r6(e.latlng.lat),lon:r6(e.latlng.lng),radius_m:80});captureTarget=null})}
-function wpManual(mi){const lat=parseFloat(prompt('纬度:')),lon=parseFloat(prompt('经度:'));if(isNaN(lat)||isNaN(lon))return;addWP(mi,{name:prompt('名称:','')||'',lat:r6(lat),lon:r6(lon),radius_m:80})}
-function addWP(mi,wp){const m=caseData.metrics[mi];if(!Array.isArray(m.params.waypoints))m.params.waypoints=[];m.params.waypoints.push(wp);m._ex=true;renderMetrics();renderGeoOnMap();runLint();flash(wp.lat,wp.lon)}
-function rmWP(mi,wi){caseData.metrics[mi].params.waypoints.splice(wi,1);caseData.metrics[mi]._ex=true;renderMetrics();renderGeoOnMap();runLint()}
-function editWP(mi,wi){const w=caseData.metrics[mi].params.waypoints[wi];const n=prompt('名称:',w.name||'');if(n===null)return;w.name=n;const r=parseFloat(prompt('半径(m):',w.radius_m||80));if(!isNaN(r))w.radius_m=r;caseData.metrics[mi]._ex=true;renderMetrics()}
-// Single point
-function renderSP(m,mi,f){const lk=f.lat_key||'lat',lok=f.lon_key||'lon',nk=f.name_key||'name';const lat=m.params?.[lk],lon=m.params?.[lok],name=m.params?.[nk];const has=lat!=null&&lon!=null;
-  return`<div class="sub"><label>${f.label}</label><div class="geo-stat ${has?'geo-ok':'geo-no'}">${has?`✓ ${name||''} <span style="color:var(--ink-3)">${lat.toFixed(4)}, ${lon.toFixed(4)}</span>`:'未设置'}</div><div class="add-row"><button onclick="spSearch(${mi},'${lk}','${lok}','${nk}')">🔍 搜索实体</button><button onclick="spPlace(${mi},'${lk}','${lok}','${nk}')">📌 点地图</button><button onclick="spManual(${mi},'${lk}','${lok}','${nk}')">✏️ 输坐标</button>${has?`<button onclick="spClear(${mi},'${lk}','${lok}','${nk}')">✕ 清除</button>`:''}</div></div>`}
-function spSearch(mi,lk,lok,nk){captureTarget={type:'single_point',metricIdx:mi,lk,lok,nk};const mt=caseData.metrics[mi].metric_type;const role=mt==='start_point'?'起点':mt==='end_point'?'终点':'要避开的点';openSearch('🎯 选择一个地点作为'+role)}
-function spPlace(mi,lk,lok,nk){toast('📌 点击地图选择位置');map.once('click',e=>{const n=prompt('名称:','');if(n===null)return;setSP(mi,lk,lok,nk,r6(e.latlng.lat),r6(e.latlng.lng),n)})}
-function spManual(mi,lk,lok,nk){const lat=parseFloat(prompt('纬度:')),lon=parseFloat(prompt('经度:'));if(isNaN(lat)||isNaN(lon))return;setSP(mi,lk,lok,nk,r6(lat),r6(lon),prompt('名称:','')||'')}
-function setSP(mi,lk,lok,nk,lat,lon,name){const p=caseData.metrics[mi].params;p[lk]=lat;p[lok]=lon;p[nk]=name;caseData.metrics[mi]._ex=true;renderMetrics();renderGeoOnMap();runLint();flash(lat,lon)}
-function spClear(mi,lk,lok,nk){const p=caseData.metrics[mi].params;delete p[lk];delete p[lok];delete p[nk];caseData.metrics[mi]._ex=true;renderMetrics();renderGeoOnMap();runLint()}
-// Polygon/Polyline
-function renderGF(m,mi,fk,lbl,gt){const c=m.params?.[fk],has=Array.isArray(c)&&c.length>0;
-  return`<div class="sub"><label>${lbl}</label><div class="geo-stat ${has?'geo-ok':'geo-no'}">${has?'✓ '+c.length+' 顶点':'未设置'}</div><div class="add-row"><button onclick="geoDraw(${mi},'${fk}','${gt}')">🖊 绘制</button><button onclick="geoEntity(${mi},'${fk}','${gt}')">🎯 从实体</button>${has?`<button onclick="geoClear(${mi},'${fk}')">✕ 清除</button>`:''}</div></div>`}
-function geoDraw(mi,fk,gt){captureTarget={type:gt,metricIdx:mi,fieldKey:fk};if(drawHandler){drawHandler.disable();drawHandler=null}const o={shapeOptions:{color:gt==='polygon'?'#dc2626':'#2563eb',weight:3}};drawHandler=gt==='polygon'?new L.Draw.Polygon(map,o):new L.Draw.Polyline(map,o);drawHandler.enable();$('draw-msg').textContent=gt==='polygon'?'点击添加顶点，双击闭合多边形':'点击添加顶点，双击完成折线';$('draw-hud').classList.add('show')}
-function onDrawCreated(e){$('draw-hud').classList.remove('show');if(!captureTarget?.fieldKey){drawHandler=null;return}const ll=e.layerType==='polygon'?e.layer.getLatLngs()[0]:e.layer.getLatLngs();const c=ll.map(p=>[r6(p.lat),r6(p.lng)]);caseData.metrics[captureTarget.metricIdx].params[captureTarget.fieldKey]=c;caseData.metrics[captureTarget.metricIdx]._ex=true;captureTarget=null;drawHandler=null;renderMetrics();renderGeoOnMap();runLint();toast('✓ 已捕获坐标')}
-function cancelDraw(){if(drawHandler){drawHandler.disable();drawHandler=null}$('draw-hud').classList.remove('show');captureTarget=null}
-function geoEntity(mi,fk,gt){captureTarget={type:gt,metricIdx:mi,fieldKey:fk};openSearch(`🎯 选择${gt==='polygon'?'多边形':'折线'}实体`)}
-function geoClear(mi,fk){caseData.metrics[mi].params[fk]=null;caseData.metrics[mi]._ex=true;renderMetrics();renderGeoOnMap();runLint()}
-// Road names
-function renderRN(m,mi,fk){const ns=Array.isArray(m.params?.[fk])?m.params[fk]:[];
-  return`<div class="sub"><label>要避开的道路</label><div class="rn-tags">${ns.map((n,i)=>`<span class="rn-tag">${n}<button onclick="rmRN(${mi},'${fk}',${i})">×</button></span>`).join('')||'<span class="rn-empty">尚未选择道路</span>'}</div><div style="position:relative;margin-top:5px"><input class="inp inp-sm" placeholder="搜索道路名称…" oninput="searchRN(${mi},'${fk}',this.value)" onfocus="searchRN(${mi},'${fk}',this.value)"><div class="rn-sug" id="rns-${mi}" style="display:none"></div></div></div>`}
-async function searchRN(mi,fk,q){const el=$('rns-'+mi);if(!el||!currentMapId)return;const ns=await api(`/api/maps/${currentMapId}/road_names?q=${encodeURIComponent(q)}`);const ex=new Set(caseData?.metrics?.[mi]?.params?.[fk]||[]);const fl=ns.filter(n=>!ex.has(n)).slice(0,12);if(!fl.length){el.style.display='none';return}el.style.display='block';el.innerHTML=fl.map(n=>`<div class="rn-sug-i" onclick="addRN(${mi},'${fk}',this.textContent)">${esc(n)}</div>`).join('')}
-function addRN(mi,fk,n){const p=caseData.metrics[mi].params;if(!Array.isArray(p[fk]))p[fk]=[];if(!p[fk].includes(n))p[fk].push(n);caseData.metrics[mi]._ex=true;renderMetrics();runLint()}
-function rmRN(mi,fk,i){caseData.metrics[mi].params[fk].splice(i,1);caseData.metrics[mi]._ex=true;renderMetrics();runLint()}
-// Search
-let searchResults=[];          // 当前过滤后的实体数组（点击/悬停用下标引用，避免序列化进 HTML）
-let searchBound=false;          // 事件委托是否已绑定
-function openSearch(mode){$('search-pop').classList.add('open');$('sp-mode').textContent=mode||'🔍 浏览实体';$('sp-q').value='';doSearch();$('sp-q').focus();bindSearchEvents()}
-function closeSearch(){$('search-pop').classList.remove('open');captureTarget=null;clearPV()}
-// 事件委托：整个结果容器只绑一次，靠 data-idx 找到对应实体
-function bindSearchEvents(){
-  if(searchBound)return;searchBound=true;
-  const box=$('sp-results');
-  box.addEventListener('click',e=>{const it=e.target.closest('.sp-item');if(!it)return;const i=+it.dataset.idx;if(!isNaN(i)&&searchResults[i])onSPClick(searchResults[i])});
-  box.addEventListener('mouseover',e=>{const it=e.target.closest('.sp-item');if(!it)return;const i=+it.dataset.idx;const f=searchResults[i];const c=f&&f.properties&&f.properties.centroid;if(c)pvLoc(c[0],c[1])});
-  box.addEventListener('mouseout',e=>{const it=e.target.closest('.sp-item');if(it)clearPV()});
+function addMetric(type){
+  if(!caseData)return;if(!caseData.metrics)caseData.metrics=[];
+  const def=MD[type];if(!def)return;
+  const params={};def.fields.forEach(f=>{if(f.d!==undefined&&f.d!==null)params[f.k]=f.d});
+  caseData.metrics.push({id:'m_'+Math.random().toString(36).slice(2,8),metric_type:type,params,weight:0.08,is_hard:0});
+  renderMetrics();
 }
-function doSearch(){const q=($('sp-q').value||'').toLowerCase(),cat=$('sp-cat').value;
-  searchResults=allEntities.filter(f=>{const p=f.properties;if(q&&!(p.name||'').toLowerCase().includes(q))return false;if(cat&&!(p.category||'').startsWith(cat))return false;return true}).slice(0,40);
-  // 只渲染下标 + 短文本，绝不把 geometry 序列化进 HTML（多边形可能上千个坐标点）
-  $('sp-results').innerHTML=searchResults.map((f,i)=>{const p=f.properties;
-    return`<div class="sp-item" data-idx="${i}"><span class="sp-dot" style="background:${catColor(p.category)}"></span><span class="sp-name">${esc(p.name||'(无名)')}</span><span class="sp-cat">${esc(p.category||p.geom_type)}</span></div>`}).join('')||'<div style="padding:18px;text-align:center;color:var(--ink-3);font-size:12px">无匹配结果</div>'}
-function onSPClick(f){
-  if(!captureTarget){onEntClick(f);return}
-  const ct=captureTarget,p=f.properties,g=f.geometry;
-  if(ct.type==='waypoint'){let lat,lon;if(g.type==='Point'){lat=g.coordinates[1];lon=g.coordinates[0]}else if(p.centroid){lat=p.centroid[0];lon=p.centroid[1]}else return;addWP(ct.metricIdx,{name:p.name||'',lat:r6(lat),lon:r6(lon),radius_m:80});return}
-  if(ct.type==='single_point'){let lat,lon;if(g.type==='Point'){lat=g.coordinates[1];lon=g.coordinates[0]}else if(p.centroid){lat=p.centroid[0];lon=p.centroid[1]}else return;setSP(ct.metricIdx,ct.lk,ct.lok,ct.nk,r6(lat),r6(lon),p.name||'');captureTarget=null;closeSearch();return}
-  if(ct.type==='polygon'&&g.type==='Polygon'){caseData.metrics[ct.metricIdx].params[ct.fieldKey]=g.coordinates[0].map(c=>[r6(c[1]),r6(c[0])]);caseData.metrics[ct.metricIdx]._ex=true;captureTarget=null;closeSearch();renderMetrics();renderGeoOnMap();runLint();toast('✓ 已捕获多边形');return}
-  if(ct.type==='polyline'&&g.type==='LineString'){caseData.metrics[ct.metricIdx].params[ct.fieldKey]=g.coordinates.map(c=>[r6(c[1]),r6(c[0])]);caseData.metrics[ct.metricIdx]._ex=true;captureTarget=null;closeSearch();renderMetrics();renderGeoOnMap();runLint();toast('✓ 已捕获折线');return}
-  toast(`⚠ 需要${ct.type==='polygon'?'多边形':'折线'}，该实体是 ${g.type}`)}
-function onEntClick(f){const c=f.properties.centroid;if(c){map.setView([c[0],c[1]],Math.max(map.getZoom(),16));flash(c[0],c[1])}}
-// Overlays
-function clearGeoOverlays(){geoOverlays.forEach(l=>map.removeLayer(l));geoOverlays=[]}
-// 仅用于渲染的抽稀：超过 maxPts 时等距抽样（保留首尾），评分仍用原始全精度坐标
-function thinForDisplay(coords,maxPts){
-  if(!Array.isArray(coords)||coords.length<=maxPts)return coords;
-  const step=coords.length/maxPts,out=[];
-  for(let i=0;i<maxPts;i++)out.push(coords[Math.floor(i*step)]);
-  out.push(coords[coords.length-1]);
-  return out;
+function removeMetric(i){caseData.metrics.splice(i,1);renderMetrics()}
+
+// ── 途经阶段的增删 ──
+function addWpStage(mi){
+  // 先从 DOM 同步所有正在编辑的值，避免丢失
+  caseData.metrics=collectMetrics();
+  const m=caseData.metrics[mi];
+  if(!Array.isArray(m.params.groups))m.params.groups=[];
+  m.params.groups.push({points:'',min_count:1});
+  renderMetrics();
+  // 保持该指标展开
+  document.getElementById('mb-'+mi).style.display='block';
+  document.getElementById('mc-'+mi).classList.add('expanded');
 }
-function renderGeoOnMap(){clearGeoOverlays();if(!caseData?.metrics)return;
-  const PANE='geoPane';
-  caseData.metrics.forEach((m,mi)=>{const d=MD[m.metric_type];if(!d)return;
-    d.fields.forEach(f=>{
-      if(f.type==='polygon'&&Array.isArray(m.params?.[f.key])&&m.params[f.key].length>2){const l=L.polygon(thinForDisplay(m.params[f.key],400),{pane:PANE,color:'#dc2626',weight:2.5,fillColor:'#dc2626',fillOpacity:.08});l.bindTooltip(d.label,{sticky:true});l.addTo(map);geoOverlays.push(l)}
-      if(f.type==='polyline'&&Array.isArray(m.params?.[f.key])&&m.params[f.key].length>1){
-        const pts=thinForDisplay(m.params[f.key],400);
-        // 走廊折线：橙色粗实线(避开青绿路网与蓝色水系)，白色描边衬底，端点加标记
-        const halo=L.polyline(pts,{pane:PANE,color:'#fff',weight:7,opacity:.9});halo.addTo(map);geoOverlays.push(halo);
-        const l=L.polyline(pts,{pane:PANE,color:'#ea580c',weight:4,opacity:1});l.bindTooltip(d.label,{sticky:true});l.addTo(map);geoOverlays.push(l);
-        const a=pts[0],b=pts[pts.length-1];
-        [['起',a],['止',b]].forEach(([lab,pt])=>{const mk=L.marker(pt,{pane:PANE,icon:L.divIcon({className:'',html:`<div style="width:18px;height:18px;line-height:18px;text-align:center;background:#ea580c;color:#fff;border-radius:50%;position:relative;left:-9px;top:-9px;font-size:10px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)">${lab}</div>`,iconSize:[0,0]})});mk.addTo(map);geoOverlays.push(mk)});
+function removeWpStage(mi,si){
+  caseData.metrics=collectMetrics();
+  const groups=caseData.metrics[mi].params.groups;
+  if(Array.isArray(groups))groups.splice(si,1);
+  renderMetrics();
+  document.getElementById('mb-'+mi).style.display='block';
+  document.getElementById('mc-'+mi).classList.add('expanded');
+}
+
+function collectMetrics(){
+  if(!caseData?.metrics)return[];
+  return caseData.metrics.map((m,i)=>{
+    const params={...m.params};const def=MD[m.metric_type];if(!def)return m;
+    def.fields.forEach(f=>{
+      if(f.t==='wp_groups'){
+        // 收集阶段列表
+        const stageEls=document.querySelectorAll(`[data-mi="${i}"][data-gsf]`);
+        const stages={};
+        stageEls.forEach(el=>{
+          const si=el.dataset.gsi;
+          if(!stages[si])stages[si]={};
+          let v=el.value;
+          if(el.dataset.gsf==='min_count')v=Math.max(1,parseInt(v)||1);
+          stages[si][el.dataset.gsf]=v;
+        });
+        params[f.k]=Object.keys(stages).sort((a,b)=>a-b).map(k=>stages[k]);
+        return;
       }
-      if(f.type==='single_point'){const lk=f.lat_key||'lat',lok=f.lon_key||'lon',nk=f.name_key||'name';const lat=m.params?.[lk],lon=m.params?.[lok],nm=m.params?.[nk];if(lat!=null&&lon!=null){const col=m.metric_type==='start_point'?'#16a34a':m.metric_type==='avoid_point'?'#d97706':'#ef4444';const isAvoid=m.metric_type==='avoid_point';const mk=L.circleMarker([lat,lon],{pane:PANE,radius:8,color:'#fff',weight:2,fillColor:col,fillOpacity:1});if(nm)mk.bindTooltip(`${d.label}: ${nm}`,{permanent:true,direction:'right',offset:[12,0]});mk.addTo(map);geoOverlays.push(mk);if(m.params?.radius_m){const rc=L.circle([lat,lon],{pane:PANE,radius:m.params.radius_m,color:col,weight:1.5,fillOpacity:isAvoid?.1:.05,dashArray:'4,4'});rc.addTo(map);geoOverlays.push(rc)}}}
-      if(f.type==='waypoints'&&Array.isArray(m.params?.waypoints)){m.params.waypoints.forEach((w,i)=>{if(!w||!w.lat)return;const mk=L.marker([w.lat,w.lon],{pane:PANE,icon:L.divIcon({className:'',html:`<div style="width:22px;height:22px;line-height:22px;text-align:center;background:#0891b2;color:#fff;border-radius:50%;position:relative;left:-11px;top:-11px;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(8,145,178,.5)">${i+1}</div>`,iconSize:[0,0]})});if(w.name)mk.bindTooltip(w.name,{permanent:m.params.waypoints.length<=6,direction:'right',offset:[14,0]});mk.addTo(map);geoOverlays.push(mk);if(w.radius_m){const c=L.circle([w.lat,w.lon],{pane:PANE,radius:w.radius_m,color:'#0891b2',weight:1.5,fillOpacity:.05,dashArray:'4,4'});c.addTo(map);geoOverlays.push(c)}})}
-    })
-  })}
-function togM(i){caseData.metrics[i]._ex=!caseData.metrics[i]._ex;renderMetrics()}
-function addMetric(t){if(!t||!caseData)return;const d=MD[t];if(!d)return;const p={};d.fields.forEach(f=>{if(f.def!==undefined)p[f.key]=f.def});caseData.metrics.push({id:'m_'+Math.random().toString(36).slice(2,8),metric_type:t,params:p,weight:.08,is_hard:0,_ex:true});renderMetrics();runLint();$('ed-scroll').scrollTop=$('ed-scroll').scrollHeight}
-function rmM(i){caseData.metrics.splice(i,1);renderMetrics();renderGeoOnMap();runLint()}
-function collectMetrics(){if(!caseData?.metrics)return[];return caseData.metrics.map((m,i)=>{const p={...m.params};const d=MD[m.metric_type];if(!d)return m;
-  d.fields.forEach(f=>{if(['waypoints','polygon','polyline','road_names','single_point'].includes(f.type))return;const el=document.querySelector(`[data-mi="${i}"][data-fk="${f.key}"]`);if(!el)return;
-    if(f.type==='check')p[f.key]=el.checked;else if(f.type==='number'){const v=parseFloat(el.value);p[f.key]=isNaN(v)?null:v}else p[f.key]=el.value||null});
-  const wE=document.querySelector(`[data-mi="${i}"][data-fk="__w"]`),hE=document.querySelector(`[data-mi="${i}"][data-fk="__h"]`);
-  return{id:m.id,metric_type:m.metric_type,params:p,weight:wE?parseFloat(wE.value)||.08:m.weight,is_hard:hE?(hE.checked?1:0):m.is_hard}})}
-
-// ===== 配置合理性检查 (lint) =====
-function runLint(){
-  if(!caseData?.metrics){$('lint').classList.remove('show');return}
-  const ms=collectMetricsLight();const warns=[];
-  // 指令为空
-  if(!($('inp-instruction').value||'').trim())warns.push('指令为空：建议填写自然语言指令');
-  if(!ms.length)warns.push('尚未添加任何评分指标');
-  // 距离上下限矛盾
-  const maxD=ms.find(m=>m.metric_type==='max_total_distance'),minD=ms.find(m=>m.metric_type==='min_total_distance'),tgt=ms.find(m=>m.metric_type==='target_distance');
-  if(maxD&&minD&&maxD.params.max_km!=null&&minD.params.min_km!=null&&minD.params.min_km>maxD.params.max_km)warns.push(`里程矛盾：下限 ${minD.params.min_km}km > 上限 ${maxD.params.max_km}km`);
-  if(tgt&&maxD&&tgt.params.target_km!=null&&maxD.params.max_km!=null&&tgt.params.target_km>maxD.params.max_km)warns.push(`目标里程 ${tgt.params.target_km}km 超过上限 ${maxD.params.max_km}km`);
-  if(tgt&&minD&&tgt.params.target_km!=null&&minD.params.min_km!=null&&tgt.params.target_km<minD.params.min_km)warns.push(`目标里程 ${tgt.params.target_km}km 低于下限 ${minD.params.min_km}km`);
-  // 逐指标几何/参数缺失
-  ms.forEach(m=>{const d=MD[m.metric_type];if(!d)return;const lbl=d.label;
-    d.fields.forEach(f=>{
-      if(f.type==='waypoints'){const wp=m.params.waypoints;if(!Array.isArray(wp)||wp.length===0)warns.push(`「${lbl}」未添加任何途经点`);else if(wp.length===1&&m.metric_type==='waypoint_coverage')warns.push(`「${lbl}」只有 1 个途经点，顺序约束无意义`);else if(m.metric_type==='min_waypoint_count'){const mc=parseInt(m.params.min_count);if(!isNaN(mc)&&mc>wp.length)warns.push(`「${lbl}」最少命中数 ${mc} 超过候选点数量 ${wp.length}，无法满足`);}}
-      if(f.type==='polygon'&&f.key==='polygon'){const pg=m.params.polygon;if(!Array.isArray(pg)||pg.length<3)warns.push(`「${lbl}」边界多边形未设置或顶点不足`);}
-      if(f.type==='polyline'){const pl=m.params[f.key];if(!Array.isArray(pl)||pl.length<2)warns.push(`「${lbl}」走廊折线未设置或点数不足`);}
-      if(f.type==='single_point'){const lk=f.lat_key||'lat';if(m.params[lk]==null){const role=m.metric_type==='start_point'?'起点':m.metric_type==='end_point'?'终点':'要避开的点';warns.push(`「${lbl}」未设置${role}位置`)}}
-      if(f.type==='road_names'){const rn=m.params.road_names;if(!Array.isArray(rn)||rn.length===0)warns.push(`「${lbl}」未选择要避开的道路`);}
+      const el=document.querySelector(`[data-mi="${i}"][data-fk="${f.k}"]`);if(!el)return;
+      if(f.t==='check')params[f.k]=el.checked;
+      else if(f.t==='number'){const v=parseFloat(el.value);params[f.k]=isNaN(v)?null:v}
+      else params[f.k]=el.value||null;
     });
+    const wEl=document.querySelector(`[data-mi="${i}"][data-fk="__weight"]`);
+    const hEl=document.querySelector(`[data-mi="${i}"][data-fk="__hard"]`);
+    return{id:m.id,metric_type:m.metric_type,params,weight:wEl?parseFloat(wEl.value)||0.08:m.weight,is_hard:hEl?(hEl.checked?1:0):m.is_hard};
   });
-  // 权重全 0
-  const totalW=ms.reduce((s,m)=>s+(parseFloat(m.weight)||0),0);
-  if(ms.length&&totalW<=0)warns.push('所有指标权重为 0，软分无法计算');
-  // 重复指标
-  const seen={};ms.forEach(m=>{seen[m.metric_type]=(seen[m.metric_type]||0)+1});
-  Object.entries(seen).forEach(([t,n])=>{if(n>1)warns.push(`指标「${MD[t]?.label||t}」重复出现 ${n} 次`)});
-  // 渲染
-  const box=$('lint');
-  if(!warns.length){box.classList.remove('show','open');return}
-  box.classList.add('show');$('lint-n').textContent=warns.length;
-  $('lint-body').innerHTML=warns.map(w=>`<div class="lint-item">${w}</div>`).join('');
 }
-// lint 用的轻量收集（不依赖 DOM 已渲染，直接读 caseData + 当前 input）
-function collectMetricsLight(){return (caseData?.metrics||[]).map((m,i)=>{const p={...m.params};const d=MD[m.metric_type];
-  if(d)d.fields.forEach(f=>{if(['waypoints','polygon','polyline','road_names','single_point','check','select'].includes(f.type))return;const el=document.querySelector(`[data-mi="${i}"][data-fk="${f.key}"]`);if(el){const v=parseFloat(el.value);p[f.key]=isNaN(v)?null:v}});
-  const wE=document.querySelector(`[data-mi="${i}"][data-fk="__w"]`),hE=document.querySelector(`[data-mi="${i}"][data-fk="__h"]`);
-  return{metric_type:m.metric_type,params:p,weight:wE?parseFloat(wE.value):m.weight,is_hard:hE?(hE.checked?1:0):m.is_hard}})}
 
+// ================================================================
+//  导出
+// ================================================================
 async function exportBenchmark(){
   const res=await fetch(`/api/benchmarks/${BID}/export`);
-  const d=await res.json();
-  if(!res.ok){
-    // 422：必填几何/参数缺失，列出问题
-    const items=(d.details||[]).map(e=>`• [${e.instruction||e.case_id}] ${MD[e.metric]?.label||e.metric}：${e.problem}`);
-    const msg=(d.error||'导出失败')+(items.length?'\n\n'+items.join('\n'):'');
-    alert(msg);
-    toast('⚠ 导出失败，请补全缺失项');
-    return;
-  }
-  const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='benchmark.json';a.click();
-  toast('✓ 已导出 benchmark.json');
+  const data=await res.json();
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='benchmark.json';a.click();
+  showToast('✓ 已导出 benchmark.json');
 }
-// ================================================================
-//  模拟画路（沿路网试走，确认路径存在，不保存）
-// ================================================================
-async function toggleSimMode(){
-  if(simMode){exitSimMode();return}
-  if(!currentMapId){toast('⚠ 请先选择地图');return}
-  // 首次进入：加载图结构
-  if(!simGraph||simGraph._mid!==currentMapId){
-    if(simLoading)return;
-    simLoading=true;
-    $('sim-toggle-btn').textContent='⏳ 加载路网中…';
-    try{
-      const g=await api(`/api/maps/${currentMapId}/graph`);
-      simGraph=buildSimGraph(g);simGraph._mid=currentMapId;
-    }catch(e){toast('⚠ 路网加载失败');$('sim-toggle-btn').textContent='▶ 开启模拟画路';simLoading=false;return}
-    simLoading=false;
-  }
-  enterSimMode();
-}
-function enterSimMode(){
-  simMode=true;simConfirmed=[];simConfirmedLen=0;simSnap=null;
-  $('sim-toggle-btn').textContent='■ 退出模拟画路';$('sim-toggle-btn').classList.add('active');
-  $('sim-hint').style.display='block';
-  $('sim-panel').style.display='block';updateSimPanel();
-  map.getContainer().style.cursor='crosshair';
-  map.on('mousemove',onSimMove);map.on('click',onSimClick);
-}
-function exitSimMode(){
-  simMode=false;
-  $('sim-toggle-btn').textContent='▶ 开启模拟画路';$('sim-toggle-btn').classList.remove('active');
-  $('sim-hint').style.display='none';$('sim-panel').style.display='none';
-  map.getContainer().style.cursor='';
-  map.off('mousemove',onSimMove);map.off('click',onSimClick);
-  clearSimLayers();
-}
-// 构建邻接表 + 网格空间索引
-function buildSimGraph(g){
-  const nodes=new Map();
-  g.nodes.forEach(n=>nodes.set(n[0],[n[1],n[2]]));
-  const adj=new Map();
-  g.nodes.forEach(n=>adj.set(n[0],[]));
-  g.edges.forEach(e=>{const[a,b,w]=e;if(adj.has(a)&&adj.has(b)){adj.get(a).push([b,w]);adj.get(b).push([a,w])}});
-  // 网格索引：按经纬度分格，加速最近节点查找
-  let minLat=1e9,maxLat=-1e9,minLon=1e9,maxLon=-1e9;
-  nodes.forEach(([la,lo])=>{if(la<minLat)minLat=la;if(la>maxLat)maxLat=la;if(lo<minLon)minLon=lo;if(lo>maxLon)maxLon=lo});
-  const CELLS=80;
-  const dLat=(maxLat-minLat)/CELLS||1e-6,dLon=(maxLon-minLon)/CELLS||1e-6;
-  const grid=new Map();
-  const cellKey=(la,lo)=>`${Math.floor((la-minLat)/dLat)},${Math.floor((lo-minLon)/dLon)}`;
-  nodes.forEach(([la,lo],id)=>{const k=cellKey(la,lo);if(!grid.has(k))grid.set(k,[]);grid.get(k).push(id)});
-  return{nodes,adj,grid,minLat,minLon,dLat,dLon,cellKey};
-}
-// 最近节点（限定最大吸附距离）
-function nearestSimNode(lat,lon,maxM=60){
-  if(!simGraph)return null;
-  const{nodes,grid,minLat,minLon,dLat,dLon}=simGraph;
-  const ci=Math.floor((lat-minLat)/dLat),cj=Math.floor((lon-minLon)/dLon);
-  let best=null,bestD=Infinity;
-  // 从中心格向外扩一圈搜索
-  for(let r=0;r<=3;r++){
-    for(let i=ci-r;i<=ci+r;i++)for(let j=cj-r;j<=cj+r;j++){
-      if(r>0&&i>ci-r&&i<ci+r&&j>cj-r&&j<cj+r)continue; // 只查外环
-      const arr=grid.get(`${i},${j}`);if(!arr)continue;
-      for(const id of arr){const[la,lo]=nodes.get(id);const d=haversine(lat,lon,la,lo);if(d<bestD){bestD=d;best=id}}
-    }
-    if(best&&bestD<=maxM&&r>=1)break; // 找到且足够近，外扩一圈确认后停
-  }
-  return(best&&bestD<=maxM)?best:null;
-}
-function haversine(la1,lo1,la2,lo2){const R=6371000,p1=la1*Math.PI/180,p2=la2*Math.PI/180,dp=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;const a=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.sqrt(a))}
-// Dijkstra（二叉堆），返回 {path:[id...], dist:米} 或 null
-function dijkstra(src,dst){
-  if(src===dst)return{path:[src],dist:0};
-  const{adj}=simGraph;
-  const dist=new Map(),prev=new Map();
-  dist.set(src,0);
-  const heap=new MinHeap();heap.push(src,0);
-  const done=new Set();
-  while(heap.size()){
-    const[u,du]=heap.pop();
-    if(done.has(u))continue;done.add(u);
-    if(u===dst)break;
-    const nbrs=adj.get(u)||[];
-    for(const[v,w] of nbrs){
-      if(done.has(v))continue;
-      const nd=du+w;
-      if(nd<(dist.has(v)?dist.get(v):Infinity)){dist.set(v,nd);prev.set(v,u);heap.push(v,nd)}
-    }
-  }
-  if(!dist.has(dst))return null;
-  const path=[];let c=dst;while(c!==undefined){path.push(c);if(c===src)break;c=prev.get(c)}
-  path.reverse();
-  return{path,dist:dist.get(dst)};
-}
-// 最小堆
-class MinHeap{
-  constructor(){this.a=[]}
-  size(){return this.a.length}
-  push(id,d){this.a.push([id,d]);let i=this.a.length-1;while(i>0){const p=(i-1)>>1;if(this.a[p][1]<=this.a[i][1])break;[this.a[p],this.a[i]]=[this.a[i],this.a[p]];i=p}}
-  pop(){const top=this.a[0],last=this.a.pop();if(this.a.length){this.a[0]=last;let i=0;const n=this.a.length;while(1){let l=2*i+1,r=2*i+2,s=i;if(l<n&&this.a[l][1]<this.a[s][1])s=l;if(r<n&&this.a[r][1]<this.a[s][1])s=r;if(s===i)break;[this.a[s],this.a[i]]=[this.a[i],this.a[s]];i=s}}return top}
-}
-// 鼠标移动 → 吸附 + 预览路径（只重算预览段，已确认路径用缓存）
-function onSimMove(e){
-  if(!simMode||!simGraph)return;
-  const snap=nearestSimNode(e.latlng.lat,e.latlng.lng);
-  if(snap===simSnap)return; // 吸附点没变，不重绘
-  simSnap=snap;
-  renderSimPreview();
-}
-// 鼠标点击 → 确认当前吸附节点
-function onSimClick(e){
-  if(!simMode||!simGraph)return;
-  const snap=nearestSimNode(e.latlng.lat,e.latlng.lng);
-  if(snap==null){toast('⚠ 此处附近无可通行路网节点');return}
-  if(simConfirmed.length===0){
-    simConfirmed.push(snap);simSnap=snap;
-    renderSimConfirmed();renderSimPreview();updateSimPanel();return;
-  }
-  const last=simConfirmed[simConfirmed.length-1];
-  if(snap===last)return;
-  const res=dijkstra(last,snap);
-  if(!res){toast('⚠ 与上一节点不可达');return}
-  simConfirmed.push(snap);simConfirmedLen+=res.dist;simSnap=snap;
-  renderSimConfirmed();renderSimPreview();updateSimPanel();
-}
-function simUndo(){
-  if(simConfirmed.length===0)return;
-  if(simConfirmed.length===1){simConfirmed=[];simConfirmedLen=0}
-  else{
-    const last=simConfirmed[simConfirmed.length-1],prev=simConfirmed[simConfirmed.length-2];
-    const res=dijkstra(prev,last);
-    if(res)simConfirmedLen=Math.max(0,simConfirmedLen-res.dist);
-    simConfirmed.pop();
-  }
-  renderSimConfirmed();renderSimPreview();updateSimPanel();
-}
-function simClear(){simConfirmed=[];simConfirmedLen=0;simSnap=null;renderSimConfirmed();renderSimPreview();updateSimPanel()}
-// 已确认路径图层（变动时才重算，缓存在 simConfirmLayers）
-let simConfirmLayers=[],simPreviewLayers=[];
-function renderSimConfirmed(){
-  simConfirmLayers.forEach(l=>map.removeLayer(l));simConfirmLayers=[];
-  if(!simGraph)return;
-  const{nodes}=simGraph,P='simPane';
-  let pts=[];
-  for(let i=0;i<simConfirmed.length-1;i++){
-    const res=dijkstra(simConfirmed[i],simConfirmed[i+1]);
-    if(res){const seg=res.path.map(id=>nodes.get(id));if(i>0)seg.shift();pts=pts.concat(seg)}
-  }
-  if(pts.length>1){
-    simConfirmLayers.push(L.polyline(pts,{pane:P,color:'#fff',weight:8,opacity:.85}).addTo(map));
-    simConfirmLayers.push(L.polyline(pts,{pane:P,color:'#a855f7',weight:5,opacity:1}).addTo(map));
-  }
-  simConfirmed.forEach((id,i)=>{const[la,lo]=nodes.get(id);const isLast=i===simConfirmed.length-1;
-    simConfirmLayers.push(L.circleMarker([la,lo],{pane:P,radius:isLast?7:5,color:'#fff',weight:2,fillColor:'#7e22ce',fillOpacity:1}).addTo(map))});
-}
-// 预览段（鼠标移动时高频重算，只画这一段）
-function renderSimPreview(){
-  simPreviewLayers.forEach(l=>map.removeLayer(l));simPreviewLayers=[];
-  if(!simGraph)return;
-  const{nodes}=simGraph,P='simPane';
-  let previewLen=0;
-  if(simConfirmed.length>0&&simSnap!=null&&simSnap!==simConfirmed[simConfirmed.length-1]){
-    const last=simConfirmed[simConfirmed.length-1];
-    const res=dijkstra(last,simSnap);
-    if(res){
-      previewLen=res.dist;
-      const pp=res.path.map(id=>nodes.get(id));
-      simPreviewLayers.push(L.polyline(pp,{pane:P,color:'#a855f7',weight:4,opacity:.55,dashArray:'7,7'}).addTo(map));
-      res.path.forEach((id,k)=>{if(k>0&&k<res.path.length-1){const[la,lo]=nodes.get(id);simPreviewLayers.push(L.circleMarker([la,lo],{pane:P,radius:3,color:'#a855f7',weight:1,fillColor:'#fff',fillOpacity:.9}).addTo(map))}});
-    }
-  }
-  // 当前吸附高亮
-  if(simSnap!=null&&(simConfirmed.length===0||simSnap!==simConfirmed[simConfirmed.length-1])){
-    const[la,lo]=nodes.get(simSnap);
-    simPreviewLayers.push(L.circleMarker([la,lo],{pane:P,radius:8,color:'#a855f7',weight:3,fillColor:'#faf5ff',fillOpacity:.9}).addTo(map));
-  }
-  const st=$('sim-status');
-  if(st){if(simConfirmed.length===0)st.textContent='点击起点';else if(previewLen>0)st.textContent='预览 +'+fmtLen(previewLen);else st.textContent=simConfirmed.length+' 个节点'}
-}
-function clearSimLayers(){simConfirmLayers.forEach(l=>map.removeLayer(l));simPreviewLayers.forEach(l=>map.removeLayer(l));simConfirmLayers=[];simPreviewLayers=[];simLayers=[]}
-function updateSimPanel(){$('sim-len').textContent=fmtLen(simConfirmedLen);const st=$('sim-status');if(st&&simConfirmed.length===0)st.textContent='点击起点';else if(st)st.textContent=simConfirmed.length+' 个节点'}
-function fmtLen(m){return m>=1000?(m/1000).toFixed(2)+' km':Math.round(m)+' m'}
 
-// utils
-function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function api(u,m='GET',b=null){const o={method:m};if(b){o.headers={'Content-Type':'application/json'};o.body=JSON.stringify(b)}return(await fetch(u,o)).json()}
-function r6(v){return Math.round(v*1e6)/1e6}
-function flash(lat,lon,c){const m=L.circleMarker([lat,lon],{radius:18,color:c||'#0891b2',weight:3,fillOpacity:.15});m.addTo(map);setTimeout(()=>{try{m.setStyle({radius:10,opacity:.4})}catch(e){}},300);setTimeout(()=>map.removeLayer(m),1800)}
-let _pv=null;function pvLoc(lat,lon){clearPV();_pv=L.circleMarker([lat,lon],{radius:14,color:'#f59e0b',weight:3,fillColor:'#fbbf24',fillOpacity:.3});_pv.addTo(map)}
-function clearPV(){if(_pv){map.removeLayer(_pv);_pv=null}}
-function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.classList.add('show'),10);setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300)},2200)}
+function showToast(msg){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);
+  setTimeout(()=>t.classList.add('show'),10);setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300)},2000);
+}
+
 init();
 </script>
 {% endblock %}
